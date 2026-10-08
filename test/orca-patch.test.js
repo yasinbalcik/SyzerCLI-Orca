@@ -49,3 +49,17 @@ test('shells group closes terminals on quit and its snippet is valid JS', () => 
   assert.ok(!/'/.test(require('../src/orca-snippets/quit-kill').DEFS), 'no single quotes in injected text');
   new Function('I', 'ZYr', 'eH', 'u$t', `${require('../src/orca-snippets/quit-kill').DEFS};return 1`);
 });
+
+test('marker does not depend on line endings (CRLF checkout == LF package)', () => {
+  const f = path.join(__dirname, '..', 'src', 'orca-edits-restore.js');
+  const orig = fs.readFileSync(f);
+  const CRLF = String.fromCharCode(13, 10), LF = String.fromCharCode(10);
+  const text = orig.toString('utf8').split(CRLF).join(LF);
+  const before = patch.markerOf(CMD);
+  try {
+    fs.writeFileSync(f, text.split(LF).join(CRLF));
+    assert.strictEqual(patch.markerOf(CMD), before, 'CRLF');
+    fs.writeFileSync(f, text);
+    assert.strictEqual(patch.markerOf(CMD), before, 'LF');
+  } finally { fs.writeFileSync(f, orig); }
+});

@@ -1,6 +1,6 @@
 {
   "name": "syzer-orca",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Orca plugin for SyzerCLI: agent status, session history, usage, key manager, tab restore and shell cleanup",
   "bin": { "syzer-orca": "bin/syzer-orca.js" },
   "type": "commonjs",

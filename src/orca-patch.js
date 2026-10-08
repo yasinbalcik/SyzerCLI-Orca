@@ -35,7 +35,8 @@ function sourceHash() {
   const files = [];
   for (const f of fs.readdirSync(__dirname)) if (/^orca-(edits|analytics)[\w-]*\.js$/.test(f)) files.push(path.join(__dirname, f));
   try { const sd = path.join(__dirname, 'orca-snippets'); for (const f of fs.readdirSync(sd)) files.push(path.join(sd, f)); } catch { /* yok */ }
-  for (const f of files.sort()) { try { h.update(path.basename(f)).update(fs.readFileSync(f)); } catch { /* önemsiz */ } }
+  const CRLF = String.fromCharCode(13, 10), LF = String.fromCharCode(10); // satır sonundan bağımsız: CRLF çalışma kopyası = LF paket
+  for (const f of files.sort()) { try { h.update(path.basename(f)).update(fs.readFileSync(f, 'utf8').split(CRLF).join(LF)); } catch { /* önemsiz */ } }
   return h.digest('hex');
 }
 const markerOf = (cmd) => `/*syzer-orca:${PATCH_VERSION}:${crypto.createHash('sha1').update(cmd).update(sourceHash()).update(`skip:${skipList().join(',')}`).digest('hex').slice(0, 8)}*/`;
