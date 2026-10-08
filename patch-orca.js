@@ -40,6 +40,10 @@ const ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'syze
 const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:4}})`;
 
 const EDITS = [
+  // Oturum geçmişi: Hermes biçiminde yazılan Syzer oturumları "Syzer" etiketiyle görünür, devam et = `syzer --resume <id>`
+  { glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: 'hermes:`Hermes`', to: 'hermes:`Syzer`' },
+  { glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: 'e===`hermes`?`hermes`', to: 'e===`hermes`?`syzer`' },
+  { glob: /^out\/renderer\/assets\/ai-vault-session-resume-preparation-.*\.js$/, from: 'e===`hermes`?`hermes`', to: 'e===`hermes`?`syzer`' },
   // Syzer durum olayları (hermes kaynağı üzerinden gelir, orca_agent_type işaretiyle) → ajan türü autohand (=Syzer)
   { file: 'out/main/index.js', from: 'agentType:`hermes`,toolName:o.toolName', to: 'agentType:i&&i.orca_agent_type===`autohand`?`autohand`:`hermes`,toolName:o.toolName' },
   // "Yeni terminal" ajan menüsü + yan paneldeki çalışan ajan göstergesi: Autohand yuvası Syzer olur (cmd: syzer)
