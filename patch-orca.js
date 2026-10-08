@@ -40,6 +40,8 @@ const ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'syze
 const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:4}})`;
 
 const EDITS = [
+  // Syzer durum olayları (hermes kaynağı üzerinden gelir, orca_agent_type işaretiyle) → ajan türü autohand (=Syzer)
+  { file: 'out/main/index.js', from: 'agentType:`hermes`,toolName:o.toolName', to: 'agentType:i&&i.orca_agent_type===`autohand`?`autohand`:`hermes`,toolName:o.toolName' },
   // "Yeni terminal" ajan menüsü + yan paneldeki çalışan ajan göstergesi: Autohand yuvası Syzer olur (cmd: syzer)
   { glob: /^out\/renderer\/assets\/agent-catalog-.*\.js$/, from: '{id:`autohand`,label:a(`auto.lib.agent.catalog.1f8a19e9ad`,`Autohand Code`),cmd:`autohand`,faviconDomain:`autohand.ai`,homepageUrl:`https://github.com/autohandai/code-cli`}', to: '{id:`autohand`,label:`Syzer`,cmd:`syzer`,iconUrl:`' + ICON + '`,searchAliases:[`syzercli`,`openrouter`,`nvidia`],homepageUrl:`https://github.com/yasinbalcik/SyzerCLI`}' },
   { glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'autohand:{detectCmd:`autohand`,', to: 'autohand:{detectCmd:`syzer`,' },
