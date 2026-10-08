@@ -34,6 +34,9 @@ const EDITS = [
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`kimi`?`Kimi`:', to: 'e===`kimi`?`SyzerCLI`:' },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '`Kimi Usage`', to: '`SyzerCLI Usage`' },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'case`kimi`:return`K`', to: 'case`kimi`:return`S`' },
+  // Kimi CLI kurulu değilse Orca satırı gizliyor; SyzerCLI için her zaman göster
+  { glob: /^out\/renderer\/assets\/status-bar-agent-gating-.*\.js$/, from: '`gemini`,`kimi`,`antigravity`,`grok`,`zcode`]);function D', to: '`gemini`,`antigravity`,`grok`,`zcode`]);function D' },
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`zcode`?t.zcodePlanApiKeyConfigured===!0:!1:!1}', to: 'e===`zcode`?t.zcodePlanApiKeyConfigured===!0:e===`kimi`||!1:!1}' },
 ];
 
 const orcaRunning = () => { try { return /orca\.exe/i.test(execSync('tasklist /FI "IMAGENAME eq Orca.exe" /NH', { encoding: 'utf8' })); } catch { return false; } };
