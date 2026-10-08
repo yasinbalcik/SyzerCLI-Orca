@@ -40,6 +40,11 @@ const ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'syze
 const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:4}})`;
 
 const EDITS = [
+  // "Yeni terminal" ajan menüsü + yan paneldeki çalışan ajan göstergesi: Autohand yuvası Syzer olur (cmd: syzer)
+  { glob: /^out\/renderer\/assets\/agent-catalog-.*\.js$/, from: '{id:`autohand`,label:a(`auto.lib.agent.catalog.1f8a19e9ad`,`Autohand Code`),cmd:`autohand`,faviconDomain:`autohand.ai`,homepageUrl:`https://github.com/autohandai/code-cli`}', to: '{id:`autohand`,label:`Syzer`,cmd:`syzer`,iconUrl:`' + ICON + '`,searchAliases:[`syzercli`,`openrouter`,`nvidia`],homepageUrl:`https://github.com/yasinbalcik/SyzerCLI`}' },
+  { glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'autohand:{detectCmd:`autohand`,', to: 'autohand:{detectCmd:`syzer`,' },
+  { file: 'out/main/chunks/tui-agent-config-BNjfA_iy.js', from: 'autohand:{detectCmd:`autohand`,', to: 'autohand:{detectCmd:`syzer`,' },
+  { file: 'out/main/chunks/tui-agent-display-names-BtlubHK7.js', from: 'autohand:`Autohand Code`', to: 'autohand:`Syzer`' },
   // hover kutusu: sağ üst = key sayısı (badge), alt orta = kalan hak (detail)
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '(0,J.jsx)(`div`,{className:`font-medium ${n}`,children:t}),(0,J.jsx)(`div`,{className:`h-[6px]', to: '(0,J.jsxs)(`div`,{className:`flex justify-between font-medium ${n}`,children:[t,e.badge?(0,J.jsx)(`span`,{className:`font-normal opacity-70`,children:e.badge}):null]}),(0,J.jsx)(`div`,{className:`h-[6px]' },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'd&&(0,J.jsx)(`span`,{children:d})]})]})}function At(', to: 'e.detail&&(0,J.jsx)(`span`,{children:e.detail}),d&&(0,J.jsx)(`span`,{children:d})]})]})}function At(' },
@@ -94,11 +99,13 @@ async function build() {
   const node = (p) => p.split('/').reduce((n, k) => n.files[k], header);
 
   const edited = new Map();
+  const read = (f) => edited.get(f) || (node(f).unpacked ? readOrig(path.join(UNPACKED, ...f.split('/'))) : asar.extractFile(src, f.split('/').join(path.sep)).toString('utf8'));
   for (const ed of EDITS) {
-    const targets = all.filter((f) => (ed.file ? f === ed.file : ed.glob.test(f)));
+    let targets = all.filter((f) => (ed.file ? f === ed.file : ed.glob.test(f)));
+    if (ed.glob && targets.length > 1) targets = targets.filter((f) => read(f).includes(ed.from)); // hash'li dosya adları: çapayı içerenler
     if (targets.length !== 1) throw new Error(`anchor file not found/ambiguous: ${ed.file || ed.glob} (${targets.length}) — Orca changed; update EDITS`);
     const f = targets[0];
-    const cur = edited.get(f) || (node(f).unpacked ? readOrig(path.join(UNPACKED, ...f.split('/'))) : asar.extractFile(src, f.split('/').join(path.sep)).toString('utf8'));
+    const cur = read(f);
     const n = cur.split(ed.from).length - 1;
     if (n !== 1) throw new Error(`anchor "${ed.from}" matched ${n}× in ${f} — Orca changed; update EDITS`);
     edited.set(f, cur.replace(ed.from, () => ed.to));
