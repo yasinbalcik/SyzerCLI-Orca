@@ -28,16 +28,21 @@ const MAIN_FETCH = 'return(async()=>{const cp=process.getBuiltinModule?process.g
   'try{const j=JSON.parse(out);const ps=(j.providers||[]).filter(p=>p.percent_used!=null);' +
   'if(!ps.length)return r({...base,session:null,error:`No quota info (${j.keys_ready}/${j.keys_total} keys ready)`,status:`unavailable`});' +
   'const reset=ps.map(p=>p.resets_at?Date.parse(p.resets_at):null).filter(Boolean).sort()[0]||Date.now()+864e5;' +
-  'const mk=(name,u,rd,ra)=>({name,usedPercent:u,windowMinutes:1440,resetsAt:ra,resetDescription:rd});' +
-  'const total=mk(`Total`,Math.round(ps.reduce((a,p)=>a+p.percent_used,0)/ps.length),`${j.keys_ready}/${j.keys_total} keys ready`,reset);' +
-  'const buckets=[...ps.map(p=>mk(p.name,p.percent_used,`${p.keys_ready}/${p.keys_total} keys ready`,p.resets_at?Date.parse(p.resets_at):reset)),total];' +
+  'const mk=(name,u,badge,detail,ra)=>({name,usedPercent:u,windowMinutes:1440,resetsAt:ra,resetDescription:badge,badge,detail});' +
+  'const left=p=>p.limit!=null?`${Math.max(0,p.limit-(p.used||0))} left`:`quota n/a`;' +
+  'const lim=ps.filter(p=>p.limit!=null);const tl=lim.length?`${lim.reduce((a,p)=>a+Math.max(0,p.limit-(p.used||0)),0)} left`:`quota n/a`;' +
+  'const total=mk(`Total`,Math.round(ps.reduce((a,p)=>a+p.percent_used,0)/ps.length),`${j.keys_ready}/${j.keys_total} keys`,tl,reset);' +
+  'const buckets=[...ps.map(p=>mk(p.name,p.percent_used,`${p.keys_ready}/${p.keys_total} keys`,left(p),p.resets_at?Date.parse(p.resets_at):reset)),total];' +
   'r({...base,session:total,buckets,error:null,status:`ok`})}' +
   'catch(e){r({...base,session:null,error:`syzer: bad JSON`,status:`error`})}}))})();';
 
-const ICON = `data:image/svg+xml;base64,${fs.readFileSync(path.join(__dirname, 'syzer-icon.svg')).toString('base64')}`;
-const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:3}})`;
+const ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'syzer-icon.png')).toString('base64')}`;
+const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:4}})`;
 
 const EDITS = [
+  // hover kutusu: sağ üst = key sayısı (badge), alt orta = kalan hak (detail)
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '(0,J.jsx)(`div`,{className:`font-medium ${n}`,children:t}),(0,J.jsx)(`div`,{className:`h-[6px]', to: '(0,J.jsxs)(`div`,{className:`flex justify-between font-medium ${n}`,children:[t,e.badge?(0,J.jsx)(`span`,{className:`font-normal opacity-70`,children:e.badge}):null]}),(0,J.jsx)(`div`,{className:`h-[6px]' },
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'd&&(0,J.jsx)(`span`,{children:d})]})]})}function At(', to: 'e.detail&&(0,J.jsx)(`span`,{children:e.detail}),d&&(0,J.jsx)(`span`,{children:d})]})]})}function At(' },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`kimi`?(0,J.jsx)(G,{agent:`kimi`,size:13})', to: `e===\`kimi\`?${icon(13)}` },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '(0,J.jsx)(G,{agent:`kimi`,size:14})', to: icon(14) },
   { file: 'out/main/index.js', from: 'fetchKimiWithResolvedHome(){', to: `fetchKimiWithResolvedHome(){${MAIN_FETCH}` },
