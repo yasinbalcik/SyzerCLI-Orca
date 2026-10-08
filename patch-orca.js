@@ -40,6 +40,8 @@ const ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'syze
 const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:4}})`;
 
 const EDITS = [
+  // Oturum geçmişi satırlarındaki ajan simgesi (Hermes kimliği taşıdığı için) Syzer logosu olur
+  { glob: /^out\/renderer\/assets\/agent-catalog-.*\.js$/, from: 'cmd:`hermes`,faviconDomain:`nousresearch.com`', to: 'cmd:`hermes`,iconUrl:`' + ICON + '`' },
   // Oturum geçmişi: Hermes biçiminde yazılan Syzer oturumları "Syzer" etiketiyle görünür, devam et = `syzer --resume <id>`
   { glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: 'hermes:`Hermes`', to: 'hermes:`Syzer`' },
   { glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: 'e===`hermes`?`hermes`', to: 'e===`hermes`?`syzer`' },
