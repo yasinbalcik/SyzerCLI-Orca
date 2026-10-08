@@ -20,19 +20,29 @@ const STAGE = path.join(__dirname, 'staging');
 const STAGED = path.join(STAGE, 'app.asar');
 const UNPACKED = `${ASAR}.unpacked`;
 
-// Kimi alıcısını (main süreç) syzer çıktısıyla değiştir
+// Kimi alıcısını (main süreç) syzer çıktısıyla değiştir: sağlayıcı başına bir çubuk + toplam ortalama çubuğu
 const MAIN_FETCH = 'return(async()=>{const cp=process.getBuiltinModule?process.getBuiltinModule(`child_process`):require(`child_process`);' +
   'const base={provider:`kimi`,weekly:null,updatedAt:Date.now()};' +
   'return await new Promise(r=>cp.execFile(process.env.SYZER_BIN||`syzer`,[`usage`,`--summary`,`--json`],{timeout:20000,shell:true,windowsHide:true,maxBuffer:1<<20},(err,out)=>{' +
   'if(err)return r({...base,session:null,error:`syzer: `+String(err.message).split(`\n`)[0],status:`error`});' +
-  'try{const j=JSON.parse(out);const u=j.percent_used;if(u==null)return r({...base,session:null,error:`No quota info (${j.keys_ready}/${j.keys_total} keys ready)`,status:`unavailable`});' +
-  'r({...base,session:{usedPercent:u,windowMinutes:1440,resetsAt:j.resets_at?Date.parse(j.resets_at):null,resetDescription:`${j.keys_ready}/${j.keys_total} keys ready`},error:null,status:`ok`})}' +
+  'try{const j=JSON.parse(out);const ps=(j.providers||[]).filter(p=>p.percent_used!=null);' +
+  'if(!ps.length)return r({...base,session:null,error:`No quota info (${j.keys_ready}/${j.keys_total} keys ready)`,status:`unavailable`});' +
+  'const reset=ps.map(p=>p.resets_at?Date.parse(p.resets_at):null).filter(Boolean).sort()[0]||Date.now()+864e5;' +
+  'const mk=(name,u,rd,ra)=>({name,usedPercent:u,windowMinutes:1440,resetsAt:ra,resetDescription:rd});' +
+  'const total=mk(`Total`,Math.round(ps.reduce((a,p)=>a+p.percent_used,0)/ps.length),`${j.keys_ready}/${j.keys_total} keys ready`,reset);' +
+  'const buckets=[...ps.map(p=>mk(p.name,p.percent_used,`${p.keys_ready}/${p.keys_total} keys ready`,p.resets_at?Date.parse(p.resets_at):reset)),total];' +
+  'r({...base,session:total,buckets,error:null,status:`ok`})}' +
   'catch(e){r({...base,session:null,error:`syzer: bad JSON`,status:`error`})}}))})();';
 
+const ICON = `data:image/svg+xml;base64,${fs.readFileSync(path.join(__dirname, 'syzer-icon.svg')).toString('base64')}`;
+const icon = (size) => `(0,J.jsx)(\`img\`,{src:\`${ICON}\`,width:${size},height:${size},alt:\`Syzer\`,style:{borderRadius:3}})`;
+
 const EDITS = [
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`kimi`?(0,J.jsx)(G,{agent:`kimi`,size:13})', to: `e===\`kimi\`?${icon(13)}` },
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '(0,J.jsx)(G,{agent:`kimi`,size:14})', to: icon(14) },
   { file: 'out/main/index.js', from: 'fetchKimiWithResolvedHome(){', to: `fetchKimiWithResolvedHome(){${MAIN_FETCH}` },
-  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`kimi`?`Kimi`:', to: 'e===`kimi`?`SyzerCLI`:' },
-  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '`Kimi Usage`', to: '`SyzerCLI Usage`' },
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'e===`kimi`?`Kimi`:', to: 'e===`kimi`?`Syzer`:' },
+  { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: '`Kimi Usage`', to: '`Syzer Usage`' },
   { glob: /^out\/renderer\/assets\/StatusBar-.*\.js$/, from: 'case`kimi`:return`K`', to: 'case`kimi`:return`S`' },
   // Kimi CLI kurulu değilse Orca satırı gizliyor; SyzerCLI için her zaman göster
   { glob: /^out\/renderer\/assets\/status-bar-agent-gating-.*\.js$/, from: '`gemini`,`kimi`,`antigravity`,`grok`,`zcode`]);function D', to: '`gemini`,`antigravity`,`grok`,`zcode`]);function D' },
@@ -131,7 +141,7 @@ function apply() {
     fs.copyFileSync(path.join(STAGE, 'unpacked', ...f.split('/')), dst);
   }
   fs.copyFileSync(STAGED, ASAR);
-  console.log('applied. Start Orca; Usage → "SyzerCLI" (the former Kimi slot).');
+  console.log('applied. Start Orca; Usage → "Syzer" (the former Kimi slot).');
 }
 
 function restore() {
