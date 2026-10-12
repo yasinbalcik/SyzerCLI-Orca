@@ -1,0 +1,117 @@
+Snapshot: (args) => ipc.invoke(`${prefix}:getSnapshot`, args),
+		getSummary: (args) => ipc.invoke(`${prefix}:getSummary`, args),
+		getDaily: (args) => ipc.invoke(`${prefix}:getDaily`, args),
+		getBreakdown: (args) => ipc.invoke(`${prefix}:getBreakdown`, args),
+		getRecentSessions: (args) => ipc.invoke(`${prefix}:getRecentSessions`, args)
+	};
+}
+const claudeUsageApi = createUsageProviderApi(electron.ipcRenderer, "claudeUsage");
+const codexUsageApi = createUsageProviderApi(electron.ipcRenderer, "codexUsage");
+const openCodeUsageApi = createUsageProviderApi(electron.ipcRenderer, "openCodeUsage");
+const museUsageApi = createUsageProviderApi(electron.ipcRenderer, "museUsage");
+const SESSION_SEARCH_LIMIT_DEFAULT = 20;
+const SESSION_SEARCH_LIMIT_MAX = 100;
+function resolveSessionSearchLimit(limit) {
+	const requested = Number.isInteger(limit) ? limit : 20;
+	return Math.min(Math.max(1, requested), 100);
+}
+const AI_VAULT_AGENTS = [
+	"claude",
+	"codebuddy",
+	"qoder",
+	"codex",
+	"hermes",
+	"pi",
+	"omp",
+	"prime-agent",
+	"cursor",
+	"gemini",
+	"antigravity",
+	"rovo",
+	"copilot",
+	"opencode",
+	"opencode2",
+	"zcode",
+	"grok",
+	"openclaw",
+	"devin",
+	"droid",
+	"cline",
+	"kimi",
+	"muse",
+	"jcode"
+];
+const AI_VAULT_SCOPE_PATHS_MAX_COUNT = 64;
+const AI_VAULT_SEARCH_SORTS = ["rele
+/*--fixture-window--*/
+refreshGrok: () => electron.ipcRenderer.invoke("rateLimits:refreshGrok"),
+	onUpdate: (callback) => {
+		const listener = (_event, state) => callback(state);
+		electron.ipcRenderer.on("rateLimits:update", listener);
+		return () => electron.ipcRenderer.removeListener("rateLimits:update", listener);
+	}
+};
+const opencodeGoCredentialsApi = {
+	getStatus: () => electron.ipcRenderer.invoke("opencodeGoCredentials:getStatus"),
+	saveApiKey: (key) => electron.ipcRenderer.invoke("opencodeGoCredentials:saveApiKey", key),
+	clearApiKey: () => electron.ipcRenderer.invoke("opencodeGoCredentials:clearApiKey")
+};
+const minimaxCredentialsApi = {
+	getStatus: () => electron.ipcRenderer.invoke("minimaxCredentials:getStatus"),
+	saveCookie: (cookie) => electron.ipcRenderer.invoke("minimaxCredentials:saveCookie", cookie),
+	clearCookie: () => electron.ipcRenderer.invoke("minimaxCredentials:clearCookie"),
+	saveApiKey: (key) => electron.ipcRenderer.invoke("minimaxCredentials:saveApiKey", key),
+	clearApiKey: () => electron.ipcRenderer.invoke("minimaxCredentials:clearApiKey")
+};
+const zcodePlanCredentialsApi = {
+	getStatus: () => electron.ipcRenderer.invoke("zcodePlanCredentials:getStatus"),
+	saveApiKey: (key) => electron.ipcRenderer.invoke("zc
+/*--fixture-window--*/
+osTccPrompts: macosTccPromptsApi,
+	developerPermissions: developerPermissionsApi,
+	computerUsePermissions: computerUsePermissionsApi,
+	shell: shellApi,
+	skills: skillsApi,
+	pet: petApi,
+	browser: browserApi,
+	emulator: emulatorApi,
+	hooks: hooksApi,
+	ephemeralVm: ephemeralVmApi,
+	cache: cacheApi,
+	session: sessionApi,
+	remoteWorkspace: remoteWorkspaceApi,
+	updater: updaterApi,
+	docPreview: docPreviewApi,
+	notebook: notebookApi,
+	fs: fsApi,
+	git: gitApi,
+	ui: uiApi,
+	stats: statsApi,
+	memory: memoryApi,
+	claudeUsage: claudeUsageApi,
+	codexUsage: codexUsageApi,
+	openCodeUsage: openCodeUsageApi,
+	museUsage: museUsageApi,
+	aiVault: aiVaultApi,
+	nativeChat: nativeChatApi,
+	runtime: runtimeApi,
+	runtimeEnvironments: runtimeEnvironmentsApi,
+	rateLimits: rateLimitsApi,
+	opencodeGoCredentials: opencodeGoCredentialsApi,
+	minimaxCredentials: minimaxCredentialsApi,
+	zcodePlanCredentials: zcodePlanCredentialsApi,
+	grokAccounts: grokAccountsApi,
+	cursorAccounts: cursorAccountsApi,
+	ssh: sshApi,
+	automations: automationsApi,
+	e2e: e2eApi,
+	mobile: mobileApi,
+	agentStatus: agentStatusApi,
+	speech: speechApi
+};
+if (process.contextIsolated) try {
+	electron.contextBridge.exposeInMainWorld("api", api);
+} catch (error$1) {
+	console.error(error$1);
+}
+else window.api = api;

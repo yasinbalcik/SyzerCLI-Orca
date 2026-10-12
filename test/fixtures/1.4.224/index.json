@@ -1,0 +1,615 @@
+{
+ "orcaVersion": "1.4.224",
+ "cmd": "\"syzer\"",
+ "entries": [
+  {
+   "key": "384e7d98e563",
+   "group": "core",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 0
+  },
+  {
+   "key": "02b00aa32378",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 1
+  },
+  {
+   "key": "c7edc36448c0",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 2
+  },
+  {
+   "key": "f48a448affd7",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 3
+  },
+  {
+   "key": "b38e8e7a4f09",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 4
+  },
+  {
+   "key": "7ca961936f3d",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 5
+  },
+  {
+   "key": "e79465deae6e",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 6
+  },
+  {
+   "key": "0b6ff6c92a99",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 7
+  },
+  {
+   "key": "72a2a88e9838",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 8
+  },
+  {
+   "key": "faf18d5497f7",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 9
+  },
+  {
+   "key": "14fcb9ebfa97",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 10
+  },
+  {
+   "key": "2a92e682c273",
+   "group": "usage",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 11
+  },
+  {
+   "key": "9f24a303fa50",
+   "group": "usage",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 12
+  },
+  {
+   "key": "dc045a9f7f74",
+   "group": "usage",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 13
+  },
+  {
+   "key": "36eff4b473a8",
+   "group": "usage",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 14
+  },
+  {
+   "key": "357c5d30dcbf",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 15
+  },
+  {
+   "key": "6e6cabf89847",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 16
+  },
+  {
+   "key": "72d127476e73",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 17
+  },
+  {
+   "key": "301492416fd9",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 18
+  },
+  {
+   "key": "afe6f4e0ab0f",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 19
+  },
+  {
+   "key": "fb286e1baffb",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 20
+  },
+  {
+   "key": "8e0412399482",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 21
+  },
+  {
+   "key": "5f9b9964f38f",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 22
+  },
+  {
+   "key": "74f2cc2f4262",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 23
+  },
+  {
+   "key": "41851928ff4e",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 24
+  },
+  {
+   "key": "b998d746514d",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 25
+  },
+  {
+   "key": "99aaba79fcda",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 26
+  },
+  {
+   "key": "4de2f6e26a84",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 27
+  },
+  {
+   "key": "cf05556d74ae",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 28
+  },
+  {
+   "key": "b23b01e9797b",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 29
+  },
+  {
+   "key": "00d7becd9f2e",
+   "group": "usage",
+   "target": "out/renderer/assets/StatusBar-5b8YI3bM.js",
+   "fixture": "out__renderer__assets__StatusBar-5b8YI3bM.js.txt",
+   "edit": 30
+  },
+  {
+   "key": "ff3021e2724f",
+   "group": "agent",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 31
+  },
+  {
+   "key": "27b7fd458277",
+   "group": "agent",
+   "target": "out/main/chunks/tui-agent-config-CGAGUZJo.js",
+   "fixture": "out__main__chunks__tui-agent-config-CGAGUZJo.js.txt",
+   "edit": 32
+  },
+  {
+   "key": "44b3864ce476",
+   "group": "agent",
+   "target": "out/main/chunks/tui-agent-display-names-CkqN6YlB.js",
+   "fixture": "out__main__chunks__tui-agent-display-names-CkqN6YlB.js.txt",
+   "edit": 33
+  },
+  {
+   "key": "0803fcb5d06a",
+   "group": "agent",
+   "target": "out/main/chunks/tui-agent-selection-B_iZVY0f.js",
+   "fixture": "out__main__chunks__tui-agent-selection-B_iZVY0f.js.txt",
+   "edit": 34
+  },
+  {
+   "key": "57e9db82ff01",
+   "group": "agent",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 35
+  },
+  {
+   "key": "e5aa2c551928",
+   "group": "agent",
+   "target": "out/renderer/assets/stale-document-visibility-Cc2sqOD1.js",
+   "fixture": "out__renderer__assets__stale-document-visibility-Cc2sqOD1.js.txt",
+   "edit": 36
+  },
+  {
+   "key": "87c94cfbc5f4",
+   "group": "agent",
+   "target": "out/renderer/assets/markdown-preview-document.worker-gS-Z32op.js",
+   "fixture": "out__renderer__assets__markdown-preview-document.worker-gS-Z32op.js.txt",
+   "edit": 37
+  },
+  {
+   "key": "30a67a3b5bd3",
+   "group": "agent",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 38
+  },
+  {
+   "key": "4c4582566738",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 39
+  },
+  {
+   "key": "eca25434f777",
+   "group": "agent",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 40
+  },
+  {
+   "key": "818ad5a82381",
+   "group": "agent",
+   "target": "out/renderer/assets/agent-catalog-D55dFvJj.js",
+   "fixture": "out__renderer__assets__agent-catalog-D55dFvJj.js.txt",
+   "edit": 41
+  },
+  {
+   "key": "e683999e6ef9",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 42
+  },
+  {
+   "key": "27e8053cf5a6",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 43
+  },
+  {
+   "key": "939b2f944c79",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 44
+  },
+  {
+   "key": "547847f53be8",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 45
+  },
+  {
+   "key": "a13391183b83",
+   "group": "agent",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 46
+  },
+  {
+   "key": "28a49e118bff",
+   "group": "history",
+   "target": "out/main/chunks/session-scanner-opencode-sqlite-open-ih2Ri0oD.js",
+   "fixture": "out__main__chunks__session-scanner-opencode-sqlite-open-ih2Ri0oD.js.txt",
+   "edit": 47
+  },
+  {
+   "key": "b37ce0f669bf",
+   "group": "history",
+   "target": "out/main/chunks/session-scanner-opencode-sqlite-open-ih2Ri0oD.js",
+   "fixture": "out__main__chunks__session-scanner-opencode-sqlite-open-ih2Ri0oD.js.txt",
+   "edit": 48
+  },
+  {
+   "key": "8c0637fd2410",
+   "group": "history",
+   "target": "out/renderer/assets/ai-vault-types-Dwjkk0Nb.js",
+   "fixture": "out__renderer__assets__ai-vault-types-Dwjkk0Nb.js.txt",
+   "edit": 49
+  },
+  {
+   "key": "358b3b0297ca",
+   "group": "history",
+   "target": "out/renderer/assets/ai-vault-types-Dwjkk0Nb.js",
+   "fixture": "out__renderer__assets__ai-vault-types-Dwjkk0Nb.js.txt",
+   "edit": 50
+  },
+  {
+   "key": "75292daf4be1",
+   "group": "history",
+   "target": "out/main/chunks/session-scanner-opencode-sqlite-open-ih2Ri0oD.js",
+   "fixture": "out__main__chunks__session-scanner-opencode-sqlite-open-ih2Ri0oD.js.txt",
+   "edit": 51
+  },
+  {
+   "key": "49588c975d28",
+   "group": "history",
+   "target": "out/renderer/assets/ai-vault-session-drag-BZ5rUFrQ.js",
+   "fixture": "out__renderer__assets__ai-vault-session-drag-BZ5rUFrQ.js.txt",
+   "edit": 52
+  },
+  {
+   "key": "bd04ef08e11f",
+   "group": "history",
+   "target": "out/main/chunks/session-search-sqlite-support-Crvu855v.js",
+   "fixture": "out__main__chunks__session-search-sqlite-support-Crvu855v.js.txt",
+   "edit": 53
+  },
+  {
+   "key": "6544eb083de5",
+   "group": "history",
+   "target": "out/main/chunks/session-scanner-service-protocol-CIy0hZpW.js",
+   "fixture": "out__main__chunks__session-scanner-service-protocol-CIy0hZpW.js.txt",
+   "edit": 54
+  },
+  {
+   "key": "3de4fe6a395b",
+   "group": "history",
+   "target": "out/main/chunks/session-scanner-service-protocol-CIy0hZpW.js",
+   "fixture": "out__main__chunks__session-scanner-service-protocol-CIy0hZpW.js.txt",
+   "edit": 55
+  },
+  {
+   "key": "91fe3455d2e1",
+   "group": "history",
+   "target": "out/main/session-scanner-service-entry.js",
+   "fixture": "out__main__session-scanner-service-entry.js.txt",
+   "edit": 56
+  },
+  {
+   "key": "815530a1f128",
+   "group": "history",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 57
+  },
+  {
+   "key": "a6bf96725400",
+   "group": "history",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 58
+  },
+  {
+   "key": "d60d859f618c",
+   "group": "keys",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 59
+  },
+  {
+   "key": "71e0393eb50d",
+   "group": "keys",
+   "target": "out/preload/index.js",
+   "fixture": "out__preload__index.js.txt",
+   "edit": 60
+  },
+  {
+   "key": "5362e44823bf",
+   "group": "keys",
+   "target": "out/preload/index.js",
+   "fixture": "out__preload__index.js.txt",
+   "edit": 61
+  },
+  {
+   "key": "80f78508ddf9",
+   "group": "keys",
+   "target": "out/renderer/assets/useSettingsNavigationMetadata-CIG7pwbM.js",
+   "fixture": "out__renderer__assets__useSettingsNavigationMetadata-CIG7pwbM.js.txt",
+   "edit": 62
+  },
+  {
+   "key": "9878656eef1b",
+   "group": "keys",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 63
+  },
+  {
+   "key": "80b7a8a59dc4",
+   "group": "keys",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 64
+  },
+  {
+   "key": "885d847d8fb7",
+   "group": "analytics",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 65
+  },
+  {
+   "key": "d15316e94339",
+   "group": "analytics",
+   "target": "out/preload/index.js",
+   "fixture": "out__preload__index.js.txt",
+   "edit": 66
+  },
+  {
+   "key": "fd79b50c47ea",
+   "group": "analytics",
+   "target": "out/preload/index.js",
+   "fixture": "out__preload__index.js.txt",
+   "edit": 67
+  },
+  {
+   "key": "b5b5635979a7",
+   "group": "analytics",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 68
+  },
+  {
+   "key": "e39b43c28ae5",
+   "group": "analytics",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 69
+  },
+  {
+   "key": "f6a337252eb2",
+   "group": "analytics",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 70
+  },
+  {
+   "key": "bc4f4e7e8e79",
+   "group": "analytics",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 71
+  },
+  {
+   "key": "8eeae464bf2c",
+   "group": "analytics",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 72
+  },
+  {
+   "key": "252e9d940fdf",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 73
+  },
+  {
+   "key": "b570f5b42bc7",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 74
+  },
+  {
+   "key": "662353427aa7",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 75
+  },
+  {
+   "key": "eb82987c660f",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 76
+  },
+  {
+   "key": "991c18be52fd",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 77
+  },
+  {
+   "key": "706ed4bc4a4f",
+   "group": "analytics-overview",
+   "target": "out/renderer/assets/Settings-DYG9_w2e.js",
+   "fixture": "out__renderer__assets__Settings-DYG9_w2e.js.txt",
+   "edit": 78
+  },
+  {
+   "key": "6f837ddc2346",
+   "group": "restore",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 79
+  },
+  {
+   "key": "4932146455d3",
+   "group": "restore",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 80
+  },
+  {
+   "key": "287e2111db16",
+   "group": "restore",
+   "target": "out/main/chunks/agent-session-host-authority-CnRBwRBN.js",
+   "fixture": "out__main__chunks__agent-session-host-authority-CnRBwRBN.js.txt",
+   "edit": 81
+  },
+  {
+   "key": "f2ae9949267d",
+   "group": "restore",
+   "target": "out/main/chunks/agent-session-host-authority-CnRBwRBN.js",
+   "fixture": "out__main__chunks__agent-session-host-authority-CnRBwRBN.js.txt",
+   "edit": 82
+  },
+  {
+   "key": "f862ca3c101d",
+   "group": "restore",
+   "target": "out/main/chunks/agent-session-host-authority-CnRBwRBN.js",
+   "fixture": "out__main__chunks__agent-session-host-authority-CnRBwRBN.js.txt",
+   "edit": 83
+  },
+  {
+   "key": "0a1704a14770",
+   "group": "restore",
+   "target": "out/renderer/assets/store-D2j_JLHO.js",
+   "fixture": "out__renderer__assets__store-D2j_JLHO.js.txt",
+   "edit": 84
+  },
+  {
+   "key": "4b98d7bc9843",
+   "group": "shells",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 85
+  },
+  {
+   "key": "561d94c1b269",
+   "group": "shells",
+   "target": "out/main/index.js",
+   "fixture": "out__main__index.js.txt",
+   "edit": 86
+  }
+ ]
+}

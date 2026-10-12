@@ -324,4 +324,4 @@ function run(sub, flags = {}) {
   return r;
 }
 
-module.exports = { run, patch, status, install, uninstall, restore, PATCH_VERSION, markerOf, sourceHash, edits, openAsar };
+module.exports = { run, patch, status, install, uninstall, restore, PATCH_VERSION, markerOf, sourceHash, edits, openAsar, buildPatched, selfCmd, readGroups, locate, inspect, orcaRunning, LOG, TASKS };

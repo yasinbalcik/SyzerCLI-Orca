@@ -40,6 +40,12 @@ The patch is applied to Orca's `app.asar` (the original is backed up as `app.asa
 
 Also works standalone: `node bin/syzer-orca.js <command>`. Logs: `~/.syzercli/orca/patch.log`, `quit.log`.
 
+## Diagnostics: `doctor` and the canary
+
+`syzer-orca doctor [--json]` is read-only (safe while Orca runs): Orca dir/version, patch marker, per-group applied/skipped (+ reason), scheduled task and the tail of `patch.log`. Exit code: `0` all groups applied, `2` a group skipped (or not patched), `1` error.
+
+`.github/workflows/canary.yml` weekly downloads the latest Orca release (Linux `.deb`) and dry-runs the patch anchors; if any group would be skipped it opens/updates an issue titled "Orca <version>: patch groups skipped". Manually: `ORCA_ASAR=<app.asar or extracted dir> node scripts/canary.js [--json] [--out file]` (exit `2` = group skipped).
+
 > A community patch, unaffiliated with the Orca team. Tested on Windows with Orca 1.4.x.
 
 License: MIT

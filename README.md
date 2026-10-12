@@ -42,6 +42,12 @@ Doğrudan da çalışır: `node bin/syzer-orca.js <komut>`. Günlükler: `~/.syz
 
 > Bu bir topluluk yamasıdır, Orca ekibiyle bağlantısı yoktur. Windows'ta ve Orca 1.4.x üzerinde denenmiştir.
 
+## Tanı: `doctor` ve canary
+
+`syzer-orca doctor [--json]` salt-okunurdur (Orca açıkken de çalışır): Orca dizini/sürümü, yama işareti, grup bazında uygulandı/atlandı (+ neden), zamanlanmış görev ve `patch.log` sonu. Çıkış kodu: `0` tüm gruplar uygulanmış, `2` atlanan grup (ya da yama yok), `1` hata.
+
+`.github/workflows/canary.yml` haftalık olarak en son Orca sürümünü (Linux `.deb`) indirip yama çapalarını kuru çalıştırır; atlanan grup varsa "Orca <sürüm>: patch groups skipped" başlıklı issue açar/günceller. Elle: `ORCA_ASAR=<app.asar veya açılmış dizin> node scripts/canary.js [--json] [--out dosya]` (çıkış `2` = atlanan grup var).
+
 ## Geliştirme
 
 ```

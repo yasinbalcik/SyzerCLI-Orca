@@ -1,0 +1,58 @@
+name: Orca canary
+# Haftalık: en son Orca sürümüne karşı yama çapalarını kuru çalıştırır; atlanan grup varsa issue açar/günceller.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Run canary (latest Orca .deb, dry-run)
+        id: canary
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          node scripts/canary.js --out canary-result.json
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "1" ]; then
+            echo "::warning::Canary could not download/extract the Orca release (exit 1); no issue opened. Run it locally with ORCA_ASAR=<app.asar>."
+          fi
+          exit 0
+      - name: Open or update issue when groups are skipped
+        if: steps.canary.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./canary-result.json').orcaVersion")
+          title="Orca ${version}: patch groups skipped"
+          node -e "
+            const r = require('./canary-result.json');
+            const L = ['The weekly canary found anchors that no longer match **Orca ' + r.orcaVersion + '**' + (r.tag ? ' (' + r.tag + ')' : '') + '.', ''];
+            L.push('| Group | Reason |', '| --- | --- |');
+            for (const g of r.skipped) L.push('| ' + g.group + ' | ' + String(g.reason).replace(/\|/g, '/').replace(/\s+/g, ' ').slice(0, 300) + ' |');
+            L.push('', 'Applied: ' + (r.applied.join(', ') || '-'), '', 'Run: ' + process.env.RUN_URL);
+            require('fs').writeFileSync('canary-issue.md', L.join('\n'));
+          "
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number")
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            gh issue comment "$existing" --body-file canary-issue.md
+          else
+            gh issue create --title "$title" --body-file canary-issue.md
+          fi
+      - name: Fail the job when groups are skipped
+        if: steps.canary.outputs.code == '2'
+        run: exit 2
