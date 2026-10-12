@@ -7,7 +7,7 @@
   "engines": { "node": ">=18" },
   "license": "MIT",
   "scripts": {
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node scripts/run-tests.js",
     "pack": "node scripts/pack.js"
   },
   "repository": { "type": "git", "url": "https://github.com/yasinbalcik/SyzerCLI-Orca.git" }
