@@ -8,15 +8,17 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { execFileSync, spawnSync } = require('child_process');
+const vm = require('vm');
+const { spawnSync } = require('child_process');
+const platforms = { win32: require('./platform/win32'), darwin: require('./platform/darwin'), linux: require('./platform/linux') };
 
 const PATCH_VERSION = 11;
 const ROOT = process.env.SYZER_HOME || path.join(os.homedir(), '.syzercli');
 const HOME = path.join(ROOT, 'orca');
 const CLI_FILE = path.join(HOME, 'cli.json'); // Orca'nın çağıracağı Syzer komutu (köprü kurulum sırasında yazar)
 const LOG = path.join(HOME, 'patch.log');
-const TASKS = ['SyzerOrcaPatch'];
-const RUN_KEY = ['HKCU','Software','Microsoft','Windows','CurrentVersion','Run'].join(String.fromCharCode(92));
+const STATE_FILE = path.join(HOME, 'patch-state.json'); // {state:'writing'|'done', appliedAt, marker, launchesSinceApply, orcaVersion}
+const TASKS = platforms.win32.TASKS;
 
 const ICON = `data:image/png;base64,${(() => { try { return fs.readFileSync(path.join(__dirname, '..', 'assets', 'syzer-icon.png')).toString('base64'); } catch { return ''; } })()}`;
 
@@ -94,16 +96,27 @@ function writeAsar(out, header, dataBuf, extra) {
 // ---------- Orca bulma / durum ----------
 const log = (m) => { try { fs.mkdirSync(HOME, { recursive: true }); fs.appendFileSync(LOG, `${new Date().toISOString()} ${m}\n`); if (fs.statSync(LOG).size > 200000) fs.writeFileSync(LOG, ''); } catch { /* önemsiz */ } };
 
-function locate() {
-  const cands = [process.env.ORCA_DIR, process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs', 'orca'), 'C:\\Program Files\\Orca'].filter(Boolean);
-  for (const d of cands) if (fs.existsSync(path.join(d, 'resources', 'app.asar'))) return d;
+// kaynak klasörü: Windows/Linux "resources", macOS "Resources" (Contents altında)
+const resourcesOf = (dir) => ['resources', 'Resources'].map((n) => path.join(dir, n)).find((d) => fs.existsSync(path.join(d, 'app.asar'))) || path.join(dir, 'resources');
+// opts: { platform, env, home } (test için enjekte edilebilir)
+function locate(opts = {}) {
+  const platform = opts.platform || process.platform;
+  const pm = platforms[platform];
+  if (!pm) return null;
+  const cands = pm.locateCandidates(opts.env || process.env, opts.home || os.homedir());
+  for (const d of cands) if (fs.existsSync(path.join(resourcesOf(d), 'app.asar'))) return d;
   return null;
 }
-const orcaRunning = () => { if (process.env.SYZER_ORCA_SKIP_RUNNING_CHECK) return false; try { return /orca\.exe/i.test(execFileSync('tasklist', ['/FI', 'IMAGENAME eq Orca.exe', '/NH'], { encoding: 'utf8' })); } catch { return false; } };
+function orcaRunning(opts = {}) {
+  if (process.env.SYZER_ORCA_SKIP_RUNNING_CHECK) return false;
+  const pm = platforms[opts.platform || process.platform];
+  if (!pm) return false;
+  try { return !!pm.runningCheck(opts.run || spawnSync); } catch { return false; }
+}
 const markerRe = /\/\*syzer-orca:(\d+):([0-9a-f]{8})\*\//;
 
 function paths(dir) {
-  const asarFile = path.join(dir, 'resources', 'app.asar');
+  const asarFile = path.join(resourcesOf(dir), 'app.asar');
   return { asarFile, backup: `${asarFile}.syzer-orig`, meta: `${asarFile}.syzer-orig.json`, unpacked: `${asarFile}.unpacked` };
 }
 
@@ -137,17 +150,22 @@ function status() {
 const count = (text, from) => (from instanceof RegExp ? (text.match(new RegExp(from.source, `${from.flags.replace("g", "")}g`)) || []).length : text.split(from).length - 1);
 
 
-function buildPatched(dir, srcAsar, unpackedSrc, cmd) {
+// opts: { skip: Set (çalışma zamanı atlanacak gruplar; core atlanamaz), edits: yama listesi (varsayılan: edits(cmd)) }
+// history: dosya -> [{group:null,text:orijinal}, {group,text}, ...] (sözdizimi doğrulamada suçlu grubu bulmak için)
+function buildPatched(dir, srcAsar, unpackedSrc, cmd, opts = {}) {
   const a = openAsar(srcAsar);
   try {
     const edited = new Map();
+    const history = new Map();
     const read = (f) => edited.get(f) ?? (a.node(f).unpacked ? fs.readFileSync(unpackedSrc(f), 'utf8') : a.read(f).toString('utf8'));
     const groups = new Map();
-    for (const ed of edits(cmd)) { if (!groups.has(ed.group)) groups.set(ed.group, []); groups.get(ed.group).push(ed); }
+    for (const ed of (opts.edits || edits(cmd))) { if (!groups.has(ed.group)) groups.set(ed.group, []); groups.get(ed.group).push(ed); }
     const skipped = [];
     for (const [name, list] of groups) {
       if (name !== 'core' && skipList().includes(name)) { skipped.push(`${name} (skipped by user)`); continue; }
+      if (name !== 'core' && opts.skip && opts.skip.has(name)) continue; // çalışma zamanı atlaması: çağıran kaydeder
       const snapshot = new Map(edited);
+      const orig = new Map();
       try {
         for (const ed of list) {
           let targets = a.files.filter((f) => (ed.file ? f === ed.file : ed.glob.test(f)));
@@ -157,7 +175,12 @@ function buildPatched(dir, srcAsar, unpackedSrc, cmd) {
           const cur = read(f);
           const n = count(cur, ed.from);
           if (n !== 1) throw new Error(`anchor "${String(ed.from).slice(0, 60)}…" matched ${n}× in ${f}`);
+          if (!orig.has(f)) orig.set(f, cur);
           edited.set(f, cur.replace(ed.from, (...m) => (typeof ed.to === 'function' ? ed.to(m) : ed.to)));
+        }
+        for (const [f, before] of orig) {
+          if (!history.has(f)) history.set(f, [{ group: null, text: before }]);
+          history.get(f).push({ group: name, text: edited.get(f) });
         }
       } catch (e) {
         if (name === 'core') throw e;
@@ -176,9 +199,86 @@ function buildPatched(dir, srcAsar, unpackedSrc, cmd) {
       e.size = buf.length;
       if (e.unpacked) unpacked.push({ f, buf }); else extra.push({ entry: e, buf, f });
     }
-    return { header, data: a.copyData(), extra, unpacked, skipped, groupNames: [...groups.keys()] };
+    return { header, data: a.copyData(), extra, unpacked, skipped, groupNames: [...groups.keys()], texts: edited, history };
   } finally { a.close(); }
 }
+
+// ---------- yazmadan önce sözdizimi doğrulama ----------
+// Main/preload: CommonJS (Electron bunları fonksiyon içine sarar) → vm.Script. Renderer: ES modülü → node --check (.mjs).
+// Dönüş: null (geçerli) | hata iletisinin ilk satırı. Yalnızca JS dosyaları denetlenir.
+const firstLine = (s) => String(s || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean)[0] || 'syntax error';
+function syntaxError(file, text, run = spawnSync) {
+  if (!/\.(c|m)?js$/.test(file)) return null;
+  const esm = /\.mjs$/.test(file) || /^out\/renderer\//.test(file);
+  if (!esm) {
+    try { new vm.Script(`(function (exports, require, module, __filename, __dirname) {${text}\n})`, { filename: file }); return null; } catch (e) { return firstLine(e && e.message); }
+  }
+  let tmp = null;
+  try {
+    tmp = path.join(os.tmpdir(), `syzer-orca-check-${process.pid}-${crypto.randomBytes(4).toString('hex')}.mjs`);
+    fs.writeFileSync(tmp, text);
+    const r = run(process.execPath, ['--check', tmp], { encoding: 'utf8' });
+    if (r && r.status === 0) return null;
+    const err = String((r && r.stderr) || '').split(/\r?\n/).filter((l) => /Error/.test(l)).pop();
+    return firstLine(err || (r && r.stderr) || (r && r.error && r.error.message));
+  } finally { if (tmp) try { fs.rmSync(tmp, { force: true }); } catch { /* önemsiz */ } }
+}
+
+// buildPatched'ı sözdizimi geçerli olana dek yeniden çalıştırır; bozan grubu atlar. core bozarsa Error(code='SYNTAX_CORE') fırlatır.
+function buildValidated(dir, srcAsar, unpackedSrc, cmd, opts = {}) {
+  const run = opts.run || spawnSync;
+  const skip = new Set();
+  const dropped = [];
+  for (let guard = 0; guard < 64; guard++) {
+    const built = buildPatched(dir, srcAsar, unpackedSrc, cmd, { skip, edits: opts.edits });
+    let blamed = null;
+    for (const [f, text] of built.texts) {
+      const err = syntaxError(f, text, run);
+      if (!err) continue;
+      const hist = built.history.get(f) || [];
+      if (hist.length && syntaxError(f, hist[0].text, run)) continue; // orijinal zaten ayrışmıyor (taban hata): bizim suçumuz değil
+      // ilk ayrışmayan adım = suçlu grup
+      const bad = hist.find((h) => h.group && syntaxError(f, h.text, run));
+      blamed = { group: bad ? bad.group : (hist[hist.length - 1] || {}).group || 'core', file: f, err };
+      break;
+    }
+    if (!blamed) { built.skipped.push(...dropped); return built; }
+    if (blamed.group === 'core') { const e = new Error(`core syntax check failed in ${blamed.file}: ${blamed.err}`); e.code = 'SYNTAX_CORE'; throw e; }
+    skip.add(blamed.group);
+    dropped.push(`${blamed.group} (syntax check failed: ${blamed.err})`);
+  }
+  throw new Error('syntax validation did not converge');
+}
+
+// ---------- yazma durumu / yarım kalmış yazımdan kurtarma ----------
+const readState = (file = STATE_FILE) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
+const writeState = (patchObj, file = STATE_FILE) => { try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify({ ...(readState(file) || {}), ...patchObj })); } catch { /* önemsiz */ } };
+
+const walkFiles = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkFiles(path.join(d, e.name)) : [path.join(d, e.name)])) : []);
+// yedekten asar + unpacked dosyaları geri yazar (restore() ile ortak)
+function restoreFiles(P) {
+  fs.copyFileSync(P.backup, P.asarFile);
+  for (const f of walkFiles(P.unpacked).filter((x) => x.endsWith('.syzer-orig'))) fs.copyFileSync(f, f.slice(0, -'.syzer-orig'.length));
+}
+
+// Önceki `patch` yarım kaldıysa (".syzer-new" artığı ya da durum 'writing') yedekten geri yükler. Orca açıkken ÇAĞRILMAZ.
+// orcaVersion: şu anki asar'ın sürümü; yedek başka sürümden ise (Orca güncellendi) dosyalara dokunmadan yalnızca artık temizlenir.
+function recoverInterrupted(P, orcaVersion, stateFile = STATE_FILE) {
+  const tmp = `${P.asarFile}.syzer-new`;
+  const st = readState(stateFile);
+  const interrupted = fs.existsSync(tmp) || (st && st.state === 'writing');
+  if (!interrupted) return { recovered: false };
+  try { fs.rmSync(tmp, { force: true }); } catch { /* önemsiz */ }
+  let meta = null;
+  try { meta = JSON.parse(fs.readFileSync(P.meta, 'utf8')); } catch { /* yok */ }
+  let restored = false;
+  if (fs.existsSync(P.backup) && meta && meta.orcaVersion === orcaVersion) { restoreFiles(P); restored = true; }
+  writeState({ state: 'recovered', recoveredAt: Date.now() }, stateFile);
+  return { recovered: true, restored, detail: restored ? 'interrupted patch detected; restored original from backup' : 'interrupted patch detected; stale temp file removed (no matching backup)' };
+}
+
+// ilk 'n' en büyük düzenlenmiş dosya
+const largest = (extra, n = 3) => [...extra].sort((x, y) => y.buf.length - x.buf.length).slice(0, n);
 
 // opts: { dryRun, quiet }. Dönüş: { status: 'applied'|'up-to-date'|'running'|'not-found'|'incompatible'|'error', detail }
 function patch(opts = {}) {
@@ -186,12 +286,25 @@ function patch(opts = {}) {
   if (!dir) return { status: 'not-found' };
   const cmd = selfCmd();
   const P = paths(dir);
+  let unpackedStarted = false;
   try {
     const st = inspect(dir);
     const want = markerOf(cmd).match(markerRe);
     const applied = st.marker && st.marker.v === Number(want[1]) && st.marker.h === want[2];
-    if (applied && !opts.dryRun) return { status: 'up-to-date' }; // işaret asar'a en son yazılır → unpacked dosyalar da tamamdır
+    if (applied && !opts.dryRun) {
+      // işaret asar'a en son yazılır → unpacked dosyalar da tamamdır. (Orca'nın kendi çökmesi izlenmez; yalnızca bakım çağrıları sayılır.)
+      const s = readState();
+      if (!(s && s.state === 'writing')) { writeState({ state: 'done', marker: want[0], launchesSinceApply: ((s && s.launchesSinceApply) || 0) + 1 }); return { status: 'up-to-date' }; }
+    }
     if (!opts.dryRun && orcaRunning()) return { status: 'running' };
+    if (!opts.dryRun) {
+      // önceki yazım yarım kaldıysa: önce yedekten geri yükle (Orca kapalı), sonra yeniden yama
+      const rec = recoverInterrupted(P, st.orcaVersion);
+      if (rec.recovered) {
+        log(`recover: ${rec.detail}`);
+        if (rec.restored) { const again = inspect(dir); st.marker = again.marker; }
+      }
+    }
 
     // Kaynak = yamasız orijinal
     let srcAsar = P.asarFile;
@@ -219,7 +332,7 @@ function patch(opts = {}) {
     }
     const wasPatched = !!(st.marker || legacy);
 
-    const built = buildPatched(dir, srcAsar, unpackedSrc, cmd);
+    const built = buildValidated(dir, srcAsar, unpackedSrc, cmd);
     if (opts.dryRun) return { status: 'dry-run-ok', detail: `${built.extra.length + built.unpacked.length} files would be patched (Orca ${st.orcaVersion})${built.skipped.length ? `; skipped: ${built.skipped.join(' | ')}` : ''}` };
 
     // unpacked dosyalar: orijinali .syzer-orig olarak sakla (yoksa; yamalı bir dosya "orijinal" diye yedeklenmez), sonra yamalıyı yaz
@@ -229,22 +342,36 @@ function patch(opts = {}) {
         return { status: 'error', detail: `original of ${f} is missing (file already patched); run "syzer orca restore" or reinstall Orca` };
       }
     }
-    for (const { f, buf } of built.unpacked) {
-      const dst = path.join(P.unpacked, ...f.split('/'));
-      if (!fs.existsSync(`${dst}.syzer-orig`)) fs.copyFileSync(dst, `${dst}.syzer-orig`);
-      fs.writeFileSync(dst, buf);
-    }
+    // yazma evresi: 'writing' → 'done'. Arada kesilirse bir sonraki patch() yedekten geri yükler (recoverInterrupted).
+    writeState({ state: 'writing', startedAt: Date.now(), orcaVersion: st.orcaVersion });
     const tmp = `${P.asarFile}.syzer-new`;
     writeAsar(tmp, built.header, built.data, built.extra);
     const chk = openAsar(tmp);
     try {
       for (const { f, buf } of built.extra) if (!chk.read(f).equals(buf)) throw new Error(`verify failed: ${f}`);
+      // yeni asar'dan geri okunan en büyük dosyalar yeniden ayrıştırılır (başlık/ofset bozulmasını yakalar)
+      for (const { f } of largest(built.extra)) {
+        const err = syntaxError(f, chk.read(f).toString('utf8'));
+        if (err) throw new Error(`verify failed (syntax, read back from new asar): ${f}: ${err}`);
+      }
     } finally { chk.close(); }
+    // unpacked dosyalar yalnızca yeni asar doğrulandıktan sonra yazılır
+    unpackedStarted = true;
+    for (const { f, buf } of built.unpacked) {
+      const dst = path.join(P.unpacked, ...f.split('/'));
+      if (!fs.existsSync(`${dst}.syzer-orig`)) fs.copyFileSync(dst, `${dst}.syzer-orig`);
+      fs.writeFileSync(dst, buf);
+    }
     fs.renameSync(tmp, P.asarFile);
+    writeState({ state: 'done', appliedAt: Date.now(), marker: want[0], launchesSinceApply: 0, orcaVersion: st.orcaVersion });
     try { fs.mkdirSync(path.dirname(GROUPS_FILE), { recursive: true }); fs.writeFileSync(GROUPS_FILE, JSON.stringify({ orcaVersion: st.orcaVersion, at: Date.now(), applied: built.groupNames.filter((n) => !built.skipped.some((x) => x.startsWith(`${n} (`))), skipped: built.skipped })); } catch { /* önemsiz */ }
     return { status: 'applied', detail: `Orca ${st.orcaVersion}${built.skipped.length ? `; skipped: ${built.skipped.join(' | ')}` : ''}` };
   } catch (e) {
     try { fs.rmSync(`${P.asarFile}.syzer-new`, { force: true }); } catch { /* önemsiz */ }
+    // hata yazma evresinde olduysa ve asar henüz değişmediyse durum bayrağını temizle (yarım unpacked varsa sonraki çağrı onarır)
+    // unpacked yazımı başladıysa 'writing' kalır: sonraki patch() yedekten onarır
+    const s = readState();
+    if (s && s.state === 'writing' && !unpackedStarted) writeState({ state: 'failed', error: String(e.message).slice(0, 200) });
     return { status: /anchor/.test(e.message) ? 'incompatible' : 'error', detail: e.message };
   }
 }
@@ -255,45 +382,39 @@ function restore() {
   if (orcaRunning()) return { status: 'running' };
   const P = paths(dir);
   if (!fs.existsSync(P.backup)) return { status: 'error', detail: 'no backup' };
-  fs.copyFileSync(P.backup, P.asarFile);
-  const walk = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)])) : []);
-  for (const f of walk(P.unpacked).filter((x) => x.endsWith('.syzer-orig'))) fs.copyFileSync(f, f.slice(0, -'.syzer-orig'.length));
+  restoreFiles(P);
   return { status: 'restored' };
 }
 
-// ---------- otomatik bakım: Zamanlanmış Görev + (isteğe bağlı) başlatıcı kısayolu ----------
-function install({ shortcut = false } = {}) {
-  if (process.platform !== 'win32') return { status: 'error', detail: 'automatic maintenance is Windows-only for now' };
-  fs.mkdirSync(HOME, { recursive: true });
-  const exe = `"${process.execPath}" "${path.join(__dirname, '..', 'bin', 'syzer-orca.js')}"`; // zamanlanmış görev/kısayol eklentiyi doğrudan çalıştırır
-  const q = (s) => s.replace(/"/g, '""');
-  const vbs = path.join(HOME, 'patch.vbs');
-  fs.writeFileSync(vbs, `CreateObject("WScript.Shell").Run "${q(exe)} patch --quiet", 0, True\r\n`);
-  const create = (name, schedule) => spawnSync('schtasks', ['/Create', '/F', '/TN', name, '/TR', `wscript.exe //B "${vbs}"`, ...schedule], { encoding: 'utf8' });
-  const r1 = create(TASKS[0], ['/SC', 'MINUTE', '/MO', '10']);
-  // oturum açılışında da çalışsın (yönetici izni gerektirmeyen Run anahtarı)
-  const r2 = spawnSync('reg', ['add', RUN_KEY, '/v', 'SyzerOrcaPatch', '/t', 'REG_SZ', '/d', `wscript.exe //B "${vbs}"`, '/f'], { encoding: 'utf8' });
-  if (r1.status !== 0) return { status: 'error', detail: (r1.stderr || r1.stdout || '').trim() };
-  let lnk = null;
-  if (shortcut) {
-    const dir = locate();
-    if (dir) {
-      const start = path.join(HOME, 'orca-start.vbs');
-      fs.writeFileSync(start, `Set sh = CreateObject("WScript.Shell")\r\nsh.Run "${q(exe)} patch --quiet", 0, True\r\nsh.Run """${path.join(dir, 'Orca.exe')}""", 1, False\r\n`);
-      lnk = path.join(os.homedir(), 'Desktop', 'Orca (Syzer).lnk');
-      const ps = `$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk.replace(/'/g, "''")}');$s.TargetPath='wscript.exe';$s.Arguments='//B "${start}"';$s.IconLocation='${path.join(dir, 'Orca.exe')},0';$s.Save()`;
-      spawnSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
-    }
-  }
-  return { status: 'installed', detail: `task: ${TASKS.join(', ')} (every 10 min) + logon${r2.status === 0 ? '' : ' (logon entry failed)'}${lnk ? `; shortcut: ${lnk}` : ''}` };
+// ---------- otomatik bakım ----------
+// win32: Zamanlanmış Görev + Run anahtarı (+ kısayol); darwin: launchd ajanı; linux: systemd --user zamanlayıcı (yedek: crontab).
+// opts (test için): { platform, run, homedir, orcaHome, execPath, script }; hiçbiri verilmezse gerçek sistem.
+function platformCtx(o = {}) {
+  return {
+    run: o.run || spawnSync,
+    homedir: o.homedir || os.homedir(),
+    orcaHome: o.orcaHome || HOME,
+    execPath: o.execPath || process.execPath,
+    script: o.script || path.join(__dirname, '..', 'bin', 'syzer-orca.js'),
+    shortcut: !!o.shortcut,
+    locate: o.locate || (() => locate()),
+  };
 }
 
-function uninstall() {
-  if (process.platform === 'win32') for (const t of TASKS) spawnSync('schtasks', ['/Delete', '/F', '/TN', t], { encoding: 'utf8' });
-  if (process.platform === 'win32') spawnSync('reg', ['delete', RUN_KEY, '/v', 'SyzerOrcaPatch', '/f'], { encoding: 'utf8' });
-  try { fs.rmSync(path.join(os.homedir(), 'Desktop', 'Orca (Syzer).lnk'), { force: true }); } catch { /* yok */ }
-  return { status: 'uninstalled' };
+function install({ shortcut = false, platform = process.platform, ...o } = {}) {
+  const pm = platforms[platform];
+  if (!pm) return { status: 'error', detail: `automatic maintenance is not supported on ${platform}` };
+  const r = pm.install(platformCtx({ ...o, shortcut }));
+  if (platform !== 'win32' && shortcut && r.status === 'installed') r.detail += '; --shortcut is Windows-only (ignored)';
+  return r;
 }
+
+function uninstall({ platform = process.platform, ...o } = {}) {
+  const pm = platforms[platform];
+  if (!pm) return { status: 'uninstalled' };
+  return pm.uninstall(platformCtx(o));
+}
+
 
 // CLI: syzer orca <status|patch|install|uninstall|restore> [--quiet] [--dry-run] [--shortcut]
 function run(sub, flags = {}) {
@@ -324,4 +445,6 @@ function run(sub, flags = {}) {
   return r;
 }
 
-module.exports = { run, patch, status, install, uninstall, restore, PATCH_VERSION, markerOf, sourceHash, edits, openAsar, buildPatched, selfCmd, readGroups, locate, inspect, orcaRunning, LOG, TASKS };
+module.exports = { run, patch, status, install, uninstall, restore, PATCH_VERSION, markerOf, sourceHash, edits, openAsar, buildPatched, selfCmd, readGroups, locate, inspect, orcaRunning, LOG, TASKS,
+  // güvenlik katmanı (test/safety.test.js)
+  buildValidated, syntaxError, recoverInterrupted, readState, writeState, writeAsar, STATE_FILE, platforms, paths };

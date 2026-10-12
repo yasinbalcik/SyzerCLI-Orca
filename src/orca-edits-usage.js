@@ -1,20 +1,58 @@
 'use strict';
 // Independent `syzer` usage provider patches (hashes in filenames => globs; regex anchors survive minifier renames).
 const SB = /^renderer\/assets\/StatusBar-.*\.js$/, ST = /^renderer\/assets\/store-.*\.js$/, SM = /^renderer\/assets\/useSettingsNavigationMetadata-.*\.js$/, CT = /^main\/chunks\/constants-.*\.js$/, MAIN = /^main\/index\.js$/;
-const FETCH = 'fetchSyzerUsage(sig){return(async()=>{const cp=process.getBuiltinModule?process.getBuiltinModule(`child_process`):require(`child_process`);' +
+// JSON -> Orca provider-state mapper. Written as a real function so it is unit-testable; the injected code is its
+// toString() (same source). Injection conventions: backtick strings only, no single quotes, no template placeholders.
+// memo: Map kept across polls in the Orca main process (globalThis.__syzerMemo). now: epoch ms.
+function szMap(j, memo, now) {
+  const WARN = 80, CRIT = 95, DAY = 864e5;
+  const ps = (j.providers || []).filter(p => p.percent_used != null);
+  if (!ps.length) return { session: null, buckets: [], error: `No quota info (` + j.keys_ready + `/` + j.keys_total + ` keys ready)`, status: `unavailable` };
+  const rank = { ok: 0, warn: 1, crit: 2 };
+  const roll = (iso) => { let t = iso ? Date.parse(iso) : NaN; if (!(t > 0)) return null; if (t < now) t += Math.ceil((now - t) / DAY) * DAY; return t; };
+  const futures = ps.map(p => roll(p.resets_at)).filter(Boolean).sort((a, b) => a - b);
+  const reset = futures[0] || now + DAY;
+  const left = p => p.limit != null ? Math.max(0, p.limit - (p.used || 0)) + ` left` : `quota n/a`;
+  const mk = (name, u, badge, detail, ra, level) => ({ name, usedPercent: u, windowMinutes: 1440, resetsAt: ra, resetDescription: badge, badge, detail, level });
+  const buckets = ps.map(p => {
+    const noKeys = p.keys_total > 0 && p.keys_ready === 0;
+    const level = noKeys || p.percent_used >= CRIT ? `crit` : p.percent_used >= WARN ? `warn` : `ok`;
+    const badge = noKeys ? `0 keys ready` : level !== `ok` ? `! ` + p.percent_used + `% used` : p.keys_ready + `/` + p.keys_total + ` keys`;
+    let detail = left(p);
+    // Key rotation notice: needs the optional payload field providers[].active_key (key index); never guessed.
+    const key = p.active_key != null ? p.active_key : null;
+    const prev = memo.get(p.provider || p.name);
+    let notice = prev ? prev.notice : 0, shownKey = prev ? prev.shownKey : null, show = false;
+    if (prev && key != null && prev.key != null && (key !== prev.key || p.keys_ready < prev.ready)) { notice = 2; shownKey = key; show = true; }
+    else if (notice > 0) { notice--; show = true; }
+    if (key != null && show && shownKey != null) detail = `rotated: key #` + shownKey;
+    memo.set(p.provider || p.name, { key, ready: p.keys_ready, notice, shownKey });
+    const b = mk(p.name, p.percent_used, badge, detail, roll(p.resets_at) || reset, level);
+    b.effPercent = noKeys ? Math.max(p.percent_used, CRIT) : p.percent_used;
+    return b;
+  });
+  const worst = buckets.reduce((a, b) => (rank[b.level] > rank[a.level] || (rank[b.level] === rank[a.level] && b.effPercent > a.effPercent)) ? b : a);
+  const lim = ps.filter(p => p.limit != null);
+  const tl = lim.length ? lim.reduce((a, p) => a + Math.max(0, p.limit - (p.used || 0)), 0) + ` left` : `quota n/a`;
+  const avg = Math.round(ps.reduce((a, p) => a + p.percent_used, 0) / ps.length);
+  const total = mk(`Total`, avg, j.keys_ready + `/` + j.keys_total + ` keys`, tl, reset, worst.level);
+  if (worst.level !== `ok`) { total.badge = total.resetDescription = worst.badge + ` (` + worst.name + `)`; total.detail = tl + ` | ` + worst.name; }
+  // Orca colors a meter purely by usedPercent, so the headline (session) meter would hide one exhausted provider
+  // behind a healthy average. When any bucket is >= WARN we feed it the WORST bucket percent; the separate Total
+  // bucket keeps the true average.
+  const sess = Math.max(...buckets.map(b => b.effPercent));
+  const session = sess >= WARN ? { ...total, usedPercent: sess } : total;
+  buckets.forEach(b => { delete b.effPercent; });
+  return { session, buckets: [...buckets, total], error: null, status: `ok` };
+}
+const MAP_SRC = szMap.toString();
+const mapSyzerUsage = new Function(`return (` + MAP_SRC + `)`)();
+const FETCH = 'fetchSyzerUsage(sig){return(async()=>{const cp=process.getBuiltinModule?process.getBuiltinModule(`child_process`):require(`child_process`);' + MAP_SRC + ';' +
   'const base={provider:`syzer`,weekly:null,updatedAt:Date.now()};' +
   'return await new Promise(r=>{if(sig&&sig.aborted)return r({...base,session:null,error:`aborted`,status:`error`});' +
   'const ch=cp.exec((process.env.SYZER_BIN||__SYZER_CMD__)+` usage --summary --json`,{timeout:20000,windowsHide:true,maxBuffer:1<<20},(err,out)=>{' +
   'if(err)return r({...base,session:null,error:`syzer: `+String(err.message).split(String.fromCharCode(10))[0],status:`error`});' +
-  'try{const j=JSON.parse(out);const ps=(j.providers||[]).filter(p=>p.percent_used!=null);' +
-  'if(!ps.length)return r({...base,session:null,error:`No quota info (${j.keys_ready}/${j.keys_total} keys ready)`,status:`unavailable`});' +
-  'const reset=ps.map(p=>p.resets_at?Date.parse(p.resets_at):null).filter(Boolean).sort()[0]||Date.now()+864e5;' +
-  'const mk=(name,u,badge,detail,ra)=>({name,usedPercent:u,windowMinutes:1440,resetsAt:ra,resetDescription:badge,badge,detail});' +
-  'const left=p=>p.limit!=null?`${Math.max(0,p.limit-(p.used||0))} left`:`quota n/a`;' +
-  'const lim=ps.filter(p=>p.limit!=null);const tl=lim.length?`${lim.reduce((a,p)=>a+Math.max(0,p.limit-(p.used||0)),0)} left`:`quota n/a`;' +
-  'const total=mk(`Total`,Math.round(ps.reduce((a,p)=>a+p.percent_used,0)/ps.length),`${j.keys_ready}/${j.keys_total} keys`,tl,reset);' +
-  'const buckets=[...ps.map(p=>mk(p.name,p.percent_used,`${p.keys_ready}/${p.keys_total} keys`,left(p),p.resets_at?Date.parse(p.resets_at):reset)),total];' +
-  'r({...base,session:total,buckets,error:null,status:`ok`})}catch(e){r({...base,session:null,error:`syzer: bad JSON`,status:`error`})}});' +
+  'try{const j=JSON.parse(out);r({...base,...szMap(j,globalThis.__syzerMemo||(globalThis.__syzerMemo=new Map()),Date.now())})}catch(e){r({...base,session:null,error:`syzer: bad JSON`,status:`error`})}});' +
   'sig&&sig.addEventListener&&sig.addEventListener(`abort`,()=>{try{ch.kill()}catch{}},{once:true})})})()}';
 const K = 'fetchKimiWithResolvedHome(){let e=this.kimiHomeResolver?.();';
 const P = (group, glob, from, to) => ({ group, glob, from, to });
@@ -61,4 +99,4 @@ const edits = [
   P('statusbar', SB, /([\w$]+)\(`zcode`,t\)&&\(0,([\w$]+)\.jsxs\)\(([\w$]+),\{checked:([\w$]+)\.includes\(`zcode`\),onCheckedChange:\(\)=>\{([\w$]+)\(`usage-tracking`\),([\w$]+)\(`zcode`\)\},children:\[[^\]]*?`ZCode Usage`\)\]\}\),/,
     (m) => `${m[0]}(0,${m[2]}.jsxs)(${m[3]},{checked:${m[4]}.includes(\`syzer\`),onCheckedChange:()=>{${m[5]}(\`usage-tracking\`),${m[6]}(\`syzer\`)},children:[${szIcon(m[2], 14)},\`Syzer Usage\`]}),`),
 ];
-module.exports = { edits };
+module.exports = { edits, mapSyzerUsage, MAP_SRC };
