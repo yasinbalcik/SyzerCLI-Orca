@@ -50,7 +50,7 @@ const mapSyzerUsage = new Function(`return (` + MAP_SRC + `)`)();
 const FETCH = 'fetchSyzerUsage(sig){return(async()=>{const cp=process.getBuiltinModule?process.getBuiltinModule(`child_process`):require(`child_process`);' + MAP_SRC + ';' +
   'const base={provider:`syzer`,weekly:null,updatedAt:Date.now()};' +
   'return await new Promise(r=>{if(sig&&sig.aborted)return r({...base,session:null,error:`aborted`,status:`error`});' +
-  'const ch=cp.exec((process.env.SYZER_BIN||__SYZER_CMD__)+` usage --summary --json`,{timeout:20000,windowsHide:true,maxBuffer:1<<20},(err,out)=>{' +
+  'const ch=cp.exec((process.env.SYZER_BIN||__SYZER_CMD__)+` usage --summary --json`,{timeout:60000,windowsHide:true,maxBuffer:1<<20},(err,out)=>{' +
   'if(err)return r({...base,session:null,error:`syzer: `+String(err.message).split(String.fromCharCode(10))[0],status:`error`});' +
   'try{const j=JSON.parse(out);r({...base,...szMap(j,globalThis.__syzerMemo||(globalThis.__syzerMemo=new Map()),Date.now())})}catch(e){r({...base,session:null,error:`syzer: bad JSON`,status:`error`})}});' +
   'sig&&sig.addEventListener&&sig.addEventListener(`abort`,()=>{try{ch.kill()}catch{}},{once:true})})})()}';
