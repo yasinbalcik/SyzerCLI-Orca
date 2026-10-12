@@ -9,28 +9,47 @@ const SB = /^out\/renderer\/assets\/StatusBar-.*\.js$/;
 
 // usage sağlayıcı yamaları (ayrı dosya; glob'lar out/ önekiyle, yer tutucular doldurulur)
 function usageEdits(cmd, ICON) {
+  const fill = (s) => s.split('__SYZER_CMD__').join(JSON.stringify(cmd)).split('__SYZER_ICON__').join(ICON);
   return require('./orca-edits-usage').edits.map((e) => ({
     group: e.group === 'settings' ? 'usage-settings' : 'usage',
     glob: new RegExp(e.glob.source.replace(/^\^/, '^out\/'), e.glob.flags),
     from: e.from,
-    to: e.to.split('__SYZER_CMD__').join(JSON.stringify(cmd)).split('__SYZER_ICON__').join(ICON),
+    to: typeof e.to === 'function' ? (m) => fill(e.to(m)) : fill(e.to),
   }));
 }
 const g = (name) => (re) => ({ re, name });
 
-// Tarayıcı hizmetine eklenen Syzer oturum ayrıştırıcısı (minified yardımcı adları bu Orca sürümüne göre: _ ve m)
-const PARSER = 'async function __syzerParse(file,platform,messages){' +
-  'let o;try{o=_.Q(JSON.parse(await m.u(file.path,`utf-8`,`scan`)))}catch(e){if(e instanceof m.h)throw e;return null}' +
-  'if(!o)return null;' +
-  'const a=_.h({agent:`syzer`,file,sessionId:_.F(o.id)??_.y(file.path),messages});' +
-  'a.cwd=_.F(o.cwd);a.model=_.F(o.model);_.C(a,o.ts);' +
-  'const t=_.F(o.title);if(t)a.title=_.ot(t);' +
-  'for(const x of _.A(o.messages)){const r=_.Q(x),role=_.F(r?.role);' +
-  'if(role!==`user`&&role!==`assistant`)continue;' +
-  'a.messageCount++;role===`user`&&(a.title??=_.nt(r.content));_.f(a,role,r.content)}' +
-  'try{const fs=require(`node:fs`),p=require(`node:path`);' +
-  'a.subagentTranscriptCount=fs.readdirSync(p.join(p.dirname(file.path),p.basename(file.path,p.extname(file.path)),`subagents`)).filter(n=>n.startsWith(`agent-`)&&n.endsWith(`.json`)).length}catch{}' +
-  'return _.g(a,platform)}\n';
+// Tarayıcı hizmetine eklenen Syzer oturum ayrıştırıcısı. Minified yardımcı adları sürümden sürüme değişir:
+// jcode ayrıştırıcısının kendi gövdesinden okunur (H=genel yardımcılar, M=tarayıcı modülü, dosya okuyucu).
+// Biçim değişirse parserFor fırlatır ve grup güvenle atlanır.
+const ID = String.raw`[\w$]+`;
+const JCODE_PARSER_RE = new RegExp(
+  String.raw`async function ${ID}\(e,t=process\.platform,n\)\{return ${ID}\(e,await ${ID}\.${ID}\(e\.path,\`utf-8\`,\`scan\`\),t,n\?\{messages:n\}:void 0\)\}` +
+  String.raw`function ${ID}\(e,t,n=process\.platform,r=\{\}\)\{(?:(?!agent:\`)[^])*agent:\`jcode\`[^]*?return ${ID}\.${ID}\(o,n,r\)\}` +
+  String.raw`function ${ID}\(e,t\)\{[^]*?\}(?=async function)`,
+);
+function parserFor(src) {
+  const need = (re, what) => { const m = src.match(re); if (!m) throw new Error(`jcode parser shape changed: ${what}`); return m; };
+  const rd = need(new RegExp(String.raw`await (${ID})\.(${ID})\(e\.path,\`utf-8\`,\`scan\``), 'reader');
+  const [, H, OBJ, M, MK, STR, IDP] = need(new RegExp(String.raw`let a=(${ID})\.(${ID})\(i\);if\(!a\)return null;let o=(${ID})\.(${ID})\(\{agent:\`jcode\`,file:e,sessionId:\1\.(${ID})\(a\.id\)\?\?\1\.\5\(a\.session_id\)\?\?\3\.(${ID})\(e\.path\)`), 'object/session');
+  const ARR = need(new RegExp(String.raw`for\(let e of ${H}\.(${ID})\(a\.messages\)\)`), 'array')[1];
+  const TS = need(new RegExp(String.raw`${M}\.(${ID})\(o,a\.created_at\)`), 'timestamp')[1];
+  const FIN = need(new RegExp(String.raw`return ${M}\.(${ID})\(o,n,r\)\}`), 'finish')[1];
+  const ADD = need(new RegExp(String.raw`${M}\.(${ID})\(e,r,i,n\.timestamp\)`), 'add message')[1];
+  const [, TITLE, CONTENT] = need(new RegExp(String.raw`${H}\.(${ID})\(${H}\.(${ID})\(i\)\?\?\`\`\)`), 'title/content');
+  return 'async function __syzerParse(file,platform,messages){' +
+    `let o;try{o=${H}.${OBJ}(JSON.parse(await ${rd[1]}.${rd[2]}(file.path,\`utf-8\`,\`scan\`)))}catch(e){return null}` +
+    'if(!o)return null;' +
+    `const a=${M}.${MK}({agent:\`syzer\`,file,sessionId:${H}.${STR}(o.id)??${M}.${IDP}(file.path),messages});` +
+    `a.cwd=${H}.${STR}(o.cwd);a.model=${H}.${STR}(o.model);${M}.${TS}(a,o.ts);` +
+    `const t=${H}.${STR}(o.title);if(t)a.title=${H}.${TITLE}(t);` +
+    `for(const x of ${H}.${ARR}(o.messages)){const r=${H}.${OBJ}(x),role=${H}.${STR}(r?.role);` +
+    'if(role!==`user`&&role!==`assistant`)continue;' +
+    `a.messageCount++;role===\`user\`&&(a.title??=${H}.${TITLE}(${H}.${CONTENT}(r.content)??\`\`)||null);${M}.${ADD}(a,role,r.content,void 0)}` +
+    'try{const fs=require(`node:fs`),p=require(`node:path`);' +
+    'a.subagentTranscriptCount=fs.readdirSync(p.join(p.dirname(file.path),p.basename(file.path,p.extname(file.path)),`subagents`)).filter(n=>n.startsWith(`agent-`)&&n.endsWith(`.json`)).length}catch{}' +
+    `return ${M}.${FIN}(a,platform,messages?{messages}:{})}\n`;
+}
 
 const SUBS = 'async function __syzerSubs(parent){' +
   'const fs=require(`node:fs`),pa=require(`node:path`),base=pa.basename(parent,pa.extname(parent)),' +
@@ -76,48 +95,64 @@ function edits(cmd, ICON, marker) {
     { group: 'core', file: 'out/main/index.js', from: 'const guardKey = "__ORCA_BOOTSTRAP_FATAL_EXIT_GUARD__"', to: `${marker}const guardKey = "__ORCA_BOOTSTRAP_FATAL_EXIT_GUARD__"` },
 
     // ---- usage: Syzer'ın KENDİ kullanım sağlayıcısı (provider id: syzer; Kimi'ye bağlı değil) ----
-    { group: 'usage', glob: SB, from: '(0,J.jsx)(`div`,{className:`font-medium ${n}`,children:t}),(0,J.jsx)(`div`,{className:`h-[6px]', to: '(0,J.jsxs)(`div`,{className:`flex justify-between font-medium ${n}`,children:[t,e.badge?(0,J.jsx)(`span`,{className:`font-normal opacity-70`,children:e.badge}):null]}),(0,J.jsx)(`div`,{className:`h-[6px]' },
-    { group: 'usage', glob: SB, from: 'd&&(0,J.jsx)(`span`,{children:d})]})]})}function At(', to: 'e.detail&&(0,J.jsx)(`span`,{children:e.detail}),d&&(0,J.jsx)(`span`,{children:d})]})]})}function At(' },
     ...usageEdits(cmd, ICON),
 
     // ---- agent: Syzer kendi ajan kimliği (`syzer`) ----
-    { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-config-.*\.js$/, from: CFG, to: CFG_TO },
     { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: CFG, to: CFG_TO },
+    { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-config-.*\.js$/, from: CFG, to: CFG_TO },
     { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-display-names-.*\.js$/, from: 'jcode:`Jcode`}', to: 'jcode:`Jcode`,syzer:`Syzer`}' },
+    // yeni sekme menüsü / ajan seçimi sıralaması (main + renderer)
+    { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-selection-.*\.js$/, from: '.codebuddy.jcode`.split(`.`)', to: '.codebuddy.jcode.syzer`.split(`.`)' },
+    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: '.codebuddy.jcode`.split(`.`)', to: '.codebuddy.jcode.syzer`.split(`.`)' },
     { group: 'agent', glob: /^out\/renderer\/assets\/stale-document-visibility-.*\.js$/, from: 'jcode:`Jcode`', to: 'jcode:`Jcode`,syzer:`Syzer`' },
     { group: 'agent', glob: /^out\/renderer\/assets\/markdown-preview-document\.worker-.*\.js$/, from: 'jcode:`Jcode`}', to: 'jcode:`Jcode`,syzer:`Syzer`}' },
-    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'dsb:`DeepSeek Build`,jcode:`Jcode`};function FM', to: 'dsb:`DeepSeek Build`,jcode:`Jcode`,syzer:`Syzer`};function FM' },
-    { group: 'agent', file: 'out/main/index.js', from: 'dsb:`DeepSeek Build`,jcode:`Jcode`};function hBa', to: 'dsb:`DeepSeek Build`,jcode:`Jcode`,syzer:`Syzer`};function hBa' },
-    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'jcode:!0};function LM(e)', to: 'jcode:!0,syzer:!0};function LM(e)' },
+    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'dsb:`DeepSeek Build`,jcode:`Jcode`}', to: 'dsb:`DeepSeek Build`,jcode:`Jcode`,syzer:`Syzer`}' },
+    { group: 'agent', file: 'out/main/index.js', from: 'dsb:`DeepSeek Build`,jcode:`Jcode`}', to: 'dsb:`DeepSeek Build`,jcode:`Jcode`,syzer:`Syzer`}' },
+    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'dsb:!0,jcode:!0}', to: 'dsb:!0,jcode:!0,syzer:!0}' },
     { group: 'agent', glob: /^out\/renderer\/assets\/agent-catalog-.*\.js$/, from: 'homepageUrl:`https://github.com/1jehuang/jcode`}]}', to: 'homepageUrl:`https://github.com/1jehuang/jcode`},{id:`syzer`,label:`Syzer`,cmd:`syzer`,iconUrl:`' + ICON + '`,searchAliases:[`syzercli`,`openrouter`,`nvidia`],homepageUrl:`https://github.com/yasinbalcik/SyzerCLI`}]}' },
     // durum olayları: Syzer'ın KENDİ hook yolu (POST /hook/syzer) ve kendi olay ayrıştırıcısı (başka ajana bağlı değil)
     { group: 'agent', file: 'out/main/index.js', from: '"/hook/jcode":`jcode`})', to: '"/hook/jcode":`jcode`,"/hook/syzer":`syzer`})' },
-    { group: 'agent', file: 'out/main/index.js', from: '.zcode.dsh.jcode`.split(`.`));function dn(e)', to: '.zcode.dsh.jcode.syzer`.split(`.`));function dn(e)' },
+    { group: 'agent', file: 'out/main/index.js', from: '.zcode.dsh.jcode`.split(`.`)', to: '.zcode.dsh.jcode.syzer`.split(`.`)' },
     { group: 'agent', file: 'out/main/index.js', from: 'case`hermes`:return t===`pre_llm_call`||t===`on_session_start`;case`devin`:', to: 'case`hermes`:return t===`pre_llm_call`||t===`on_session_start`;case`syzer`:return t===`Prompt`;case`devin`:' },
-    { group: 'agent', file: 'out/main/index.js', from: 'case`hermes`:f=bse(t,r,i,a,o);break;', to: 'case`hermes`:f=bse(t,r,i,a,o);break;case`syzer`:f=__syzerEvent(t,r,i,a,o);break;' },
-    { group: 'agent', file: 'out/main/index.js', from: 'function xse(e,t,n,r,i){if(t===`SessionStart`)return an(e,r),null;', to: SYZER_EVENT + 'function xse(e,t,n,r,i){if(t===`SessionStart`)return an(e,r),null;' },
+    { group: 'agent', file: 'out/main/index.js', from: /case`hermes`:f=([\w$]+)\(t,r,i,a,o\);break;/, to: (m) => `${m[0]}case\`syzer\`:f=__syzerEvent(t,r,i,a,o);break;` },
+    // olay ayrıştırıcısı: Orca'nın genel durum normalleştiricisinin (minify adı sürümden sürüme değişir) adı devin işleyicisinden okunur
+    { group: 'agent', file: 'out/main/index.js', from: /function [\w$]+\(e,t,n,r,i\)\{if\(t===`SessionStart`\)return [\w$]+\(e,r\),null;let a=t===`UserPromptSubmit`\|\|t===`PreToolUse`\|\|t===`PostToolUse`\|\|t===`PostCompaction`[^]*?return ([\w$]+)\(\{state:a,prompt:/, to: (m) => SYZER_EVENT.split('un(').join(`${m[1]}(`) + m[0] },
     // ---- history: oturum geçmişi (Syzer oturumları + alt ajanlar, kendi biçimimiz) ----
-    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: '`kimi`,`muse`,`jcode`],p=64', to: '`kimi`,`muse`,`jcode`,`syzer`],p=64' },
+    // Minified adlar sürümden sürüme değiştiği için çapalar RegExp; yakalama grupları yeni adları taşır.
+    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: /`kimi`,`muse`,`jcode`\](,[\w$]+=64)/, to: (m) => `\`kimi\`,\`muse\`,\`jcode\`,\`syzer\`]${m[1]}` },
     { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: 'muse:`Muse`,jcode:`Jcode`', to: 'muse:`Muse`,jcode:`Jcode`,syzer:`Syzer`' },
     { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: '`kimi`,`muse`,`jcode`]', to: '`kimi`,`muse`,`jcode`,`syzer`]' },
     { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: 'jcode:`Jcode`', to: 'jcode:`Jcode`,syzer:`Syzer`' },
     { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
-    { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-session-resume-preparation-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
-    { group: 'history', glob: /^out\/main\/chunks\/codex-rollout-session-meta-.*\.js$/, from: '"prime-agent":{rootDirs:(e,t)=>x(e.primeAgentSessionsDir??re,t,[`.prime`,`agent`,`sessions`]),extensions:[`.jsonl`]},', to: `"prime-agent":{rootDirs:(e,t)=>x(e.primeAgentSessionsDir??re,t,[\`.prime\`,\`agent\`,\`sessions\`]),extensions:[\`.jsonl\`]},syzer:{rootDirs:()=>[${SYZER_DIR}],extensions:[\`.json\`],directoryPredicate:()=>!1},` },
-    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: 'case`jcode`:return ec(e.file,t,n)}}', to: 'case`jcode`:return ec(e.file,t,n);case`syzer`:return __syzerParse(e.file,t,n)}}' },
-    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: 'async function fc(', to: `${PARSER}async function fc(` },
-    { group: 'history', file: 'out/main/session-scanner-service-entry.js', from: 'return e.agent===`claude`?li({parentFilePath:e.parentFilePath}):vi({parentFilePath:e.parentFilePath})', to: 'return e.agent===`syzer`?__syzerSubs(e.parentFilePath):e.agent===`claude`?li({parentFilePath:e.parentFilePath}):vi({parentFilePath:e.parentFilePath})' },
-    { group: 'history', file: 'out/main/session-scanner-service-entry.js', from: 'function bi(', to: `${SUBS}function bi(` },
-    { group: 'history', file: 'out/main/index.js', from: 'fRi(e){if(!e||e.agent!==`claude`&&e.agent!==`omp`||', to: 'fRi(e){if(!e||e.agent!==`claude`&&e.agent!==`omp`&&e.agent!==`syzer`||' },
-    { group: 'history', file: 'out/main/index.js', from: '(e.agent===`claude`?Xe.y({wslHomeDirs:n}):Xe.x({wslHomeDirs:n}))', to: `(e.agent===\`syzer\`?[${SYZER_DIR}]:e.agent===\`claude\`?Xe.y({wslHomeDirs:n}):Xe.x({wslHomeDirs:n}))` },
+    { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-session-drag-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
+    { group: 'history', glob: /^out\/main\/chunks\/session-search-sqlite-support-.*\.js$/, from: /"prime-agent":\{rootDirs:\(e,t\)=>[\w$]+\(e\.primeAgentSessionsDir\?\?[\w$]+,t,\[`\.prime`,`agent`,`sessions`\]\),extensions:\[`\.jsonl`\]\},/, to: (m) => `${m[0]}syzer:{rootDirs:()=>[${SYZER_DIR}],extensions:[\`.json\`],directoryPredicate:()=>!1},` },
+    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: /case`jcode`:return ([\w$]+)\(e\.file,t,n\)\}\}/, to: (m) => `case\`jcode\`:return ${m[1]}(e.file,t,n);case\`syzer\`:return __syzerParse(e.file,t,n)}}` },
+    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: JCODE_PARSER_RE, to: (m) => parserFor(m[0]) + m[0] },
+    { group: 'history', file: 'out/main/session-scanner-service-entry.js', from: /function ([\w$]+)\(e\)\{return e\.agent===`claude`\?([\w$]+)\(\{parentFilePath:e\.parentFilePath\}\):([\w$]+)\(\{parentFilePath:e\.parentFilePath\}\)\}/, to: (m) => `${SUBS}function ${m[1]}(e){return e.agent===\`syzer\`?__syzerSubs(e.parentFilePath):e.agent===\`claude\`?${m[2]}({parentFilePath:e.parentFilePath}):${m[3]}({parentFilePath:e.parentFilePath})}` },
+    { group: 'history', file: 'out/main/index.js', from: 'if(!e||e.agent!==`claude`&&e.agent!==`omp`||typeof e.parentFilePath', to: 'if(!e||e.agent!==`claude`&&e.agent!==`omp`&&e.agent!==`syzer`||typeof e.parentFilePath' },
+    { group: 'history', file: 'out/main/index.js', from: /\(e\.agent===`claude`\?([\w$]+)\.([\w$]+)\(\{wslHomeDirs:n\}\):([\w$]+)\.([\w$]+)\(\{wslHomeDirs:n\}\)\)\.some/, to: (m) => `(e.agent===\`syzer\`?[${SYZER_DIR}]:e.agent===\`claude\`?${m[1]}.${m[2]}({wslHomeDirs:n}):${m[3]}.${m[4]}({wslHomeDirs:n})).some` },
 
     // ---- keys: Ayarlar → AI Provider Accounts içinde "Syzer" bölümü (key listesi, seç, sil, ekle) ----
-    { group: 'keys', file: 'out/main/index.js', from: 'function lta(e){I.ipcMain.handle(`minimaxCredentials:getStatus`', to: snippet('keys-main.js').split('__SYZER_CMD__').join(JSON.stringify(cmd)) + 'function lta(e){__syzerReg();I.ipcMain.handle(`minimaxCredentials:getStatus`' },
+    // Minified adlar sürümden sürüme değişir: main'de ipcMain takma adı, renderer'da React/jsx/Button/Badge/Label adları kaynaktan okunur.
+    { group: 'keys', file: 'out/main/index.js', from: /function ([\w$]+)\(e\)\{([\w$]+)\.ipcMain\.handle\(`minimaxCredentials:getStatus`/, to: (m) => snippet('keys-main.js').split('__SYZER_CMD__').join(JSON.stringify(cmd)).split('I.ipcMain').join(`${m[2]}.ipcMain`) + `function ${m[1]}(e){__syzerReg();${m[2]}.ipcMain.handle(\`minimaxCredentials:getStatus\`` },
     { group: 'keys', file: 'out/preload/index.js', from: 'const minimaxCredentialsApi = {', to: 'const syzerKeysApi = {list:()=>electron.ipcRenderer.invoke("syzerKeys:list"),add:(t)=>electron.ipcRenderer.invoke("syzerKeys:add",t),remove:(p,i)=>electron.ipcRenderer.invoke("syzerKeys:remove",p,i),use:(p,i)=>electron.ipcRenderer.invoke("syzerKeys:use",p,i)};\nconst minimaxCredentialsApi = {' },
     { group: 'keys', file: 'out/preload/index.js', from: '\tminimaxCredentials: minimaxCredentialsApi,', to: '\tsyzerKeys: syzerKeysApi,\n\tminimaxCredentials: minimaxCredentialsApi,' },
-    { group: 'keys', glob: /^out\/renderer\/assets\/useSettingsNavigationMetadata-.*\.js$/, from: ',ct=S(()=>[...Qe(),', to: ',ct=S(()=>[{title:"Syzer API keys",description:"Manage Syzer OpenRouter and NVIDIA API keys.",keywords:["syzer","api key","openrouter","nvidia","key"]},...Qe(),' },
-    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: 'function Xm({provider:e,target:t}){', to: snippet('keys-renderer.js') + 'function Xm({provider:e,target:t}){' },
-    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: 'ze=[!s||/opencode|devin|account/i.test(s)?', to: 'ze=[!s||/syzer|openrouter|nvidia|api key/i.test(s)?(0,Q.jsx)(__SyzerKeys,{},`syzer`):null,!s||/opencode|devin|account/i.test(s)?' },
+    { group: 'keys', glob: /^out\/renderer\/assets\/useSettingsNavigationMetadata-.*\.js$/, from: /(`AI Provider Accounts`\),description:[\w$]+\(`[^`]+`,`[^`]+`\),icon:[\w$]+,searchEntries:)([\w$]+)\(\)/, to: (m) => `${m[1]}[{title:"Syzer API keys",description:"Manage Syzer OpenRouter and NVIDIA API keys.",keywords:["syzer","api key","openrouter","nvidia","key"]},...${m[2]}()]` },
+    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: /function ([\w$]+)\(\{provider:e,target:t\}\)\{let\[n,r\]=\(0,([\w$]+)\.useState\)\(null\)/,
+      to: (m) => {
+        const src = m[m.length - 1];
+        const top = (re) => { const c = {}; for (const x of src.matchAll(re)) c[x[1]] = (c[x[1]] || 0) + 1; const k = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; if (!k) throw new Error(`keys: alias not found ${re}`); return k; };
+        const J = top(/\(0,([\w$]+)\.jsx\)\(`div`/g);
+        const BTN = top(/\(0,[\w$]+\.jsx\)\(([\w$]+),\{variant:`ghost`,size:`xs`/g);
+        const BADGE = top(/\(0,[\w$]+\.jsx\)\(([\w$]+),\{variant:`secondary`/g);
+        const LABEL = top(/\(0,[\w$]+\.jsx\)\(([\w$]+),\{htmlFor:/g);
+        const body = snippet('keys-renderer.js')
+          .split('(0,Q.jsx)(R,').join(`(0,${J}.jsx)(${BTN},`).split('(0,Q.jsx)(q,').join(`(0,${J}.jsx)(${BADGE},`).split('(0,Q.jsx)(G,').join(`(0,${J}.jsx)(${LABEL},`)
+          .split('(0,Q.jsx)(Jd,{').join(`(0,${J}.jsx)(\`textarea\`,{`).split('rows:4,className:`font-mono text-xs`').join('rows:4,className:`w-full rounded-md border border-input bg-transparent p-2 font-mono text-xs`')
+          .split('(0,Q.jsxs)').join(`(0,${J}.jsxs)`).split('(0,Q.jsx)').join(`(0,${J}.jsx)`).split('(0,Z.').join(`(0,${m[2]}.`);
+        return body + m[0];
+      } },
+    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: /([\w$]+)=\[!s\|\|\/opencode\|devin\|account\/i\.test\(s\)\?\(0,([\w$]+)\.jsxs\)/, to: (m) => `${m[1]}=[!s||/syzer|openrouter|nvidia|api key/i.test(s)?(0,${m[2]}.jsx)(__SyzerKeys,{},\`syzer\`):null,!s||/opencode|devin|account/i.test(s)?(0,${m[2]}.jsxs)` },
 
     // ---- analytics: Ayarlar → Stats & Usage → "Syzer" filtresi (kendi sağlayıcı servisi, kendi kart/ısı haritası) ----
     ...analyticsEdits(cmd),

@@ -133,6 +133,10 @@ function status() {
 }
 
 // ---------- yamayı uygula ----------
+// from: TAM metin ya da RegExp (minify isimleri sürümler arası değişir); RegExp ise to(m) fonksiyonu yakalama gruplarını alır
+const count = (text, from) => (from instanceof RegExp ? (text.match(new RegExp(from.source, `${from.flags.replace("g", "")}g`)) || []).length : text.split(from).length - 1);
+
+
 function buildPatched(dir, srcAsar, unpackedSrc, cmd) {
   const a = openAsar(srcAsar);
   try {
@@ -147,13 +151,13 @@ function buildPatched(dir, srcAsar, unpackedSrc, cmd) {
       try {
         for (const ed of list) {
           let targets = a.files.filter((f) => (ed.file ? f === ed.file : ed.glob.test(f)));
-          if (ed.glob && targets.length > 1) targets = targets.filter((f) => read(f).includes(ed.from));
+          if (ed.glob && targets.length > 1) targets = targets.filter((f) => count(read(f), ed.from) > 0);
           if (targets.length !== 1) throw new Error(`anchor file not found/ambiguous: ${ed.file || ed.glob} (${targets.length})`);
           const f = targets[0];
           const cur = read(f);
-          const n = cur.split(ed.from).length - 1;
-          if (n !== 1) throw new Error(`anchor "${ed.from.slice(0, 60)}…" matched ${n}× in ${f}`);
-          edited.set(f, cur.replace(ed.from, () => ed.to));
+          const n = count(cur, ed.from);
+          if (n !== 1) throw new Error(`anchor "${String(ed.from).slice(0, 60)}…" matched ${n}× in ${f}`);
+          edited.set(f, cur.replace(ed.from, (...m) => (typeof ed.to === 'function' ? ed.to(m) : ed.to)));
         }
       } catch (e) {
         if (name === 'core') throw e;

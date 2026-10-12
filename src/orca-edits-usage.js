@@ -1,7 +1,6 @@
 'use strict';
-// Independent `syzer` usage provider patches for Orca 1.4.222 (hashes in filenames => globs).
+// Independent `syzer` usage provider patches (hashes in filenames => globs; regex anchors survive minifier renames).
 const SB = /^renderer\/assets\/StatusBar-.*\.js$/, ST = /^renderer\/assets\/store-.*\.js$/, SM = /^renderer\/assets\/useSettingsNavigationMetadata-.*\.js$/, CT = /^main\/chunks\/constants-.*\.js$/, MAIN = /^main\/index\.js$/;
-const SZ_ICON = (n) => `(0,J.jsx)(\`img\`,{src:\`__SYZER_ICON__\`,width:${n},height:${n},alt:\`Syzer\`,style:{borderRadius:4}})`;
 const FETCH = 'fetchSyzerUsage(sig){return(async()=>{const cp=process.getBuiltinModule?process.getBuiltinModule(`child_process`):require(`child_process`);' +
   'const base={provider:`syzer`,weekly:null,updatedAt:Date.now()};' +
   'return await new Promise(r=>{if(sig&&sig.aborted)return r({...base,session:null,error:`aborted`,status:`error`});' +
@@ -19,44 +18,47 @@ const FETCH = 'fetchSyzerUsage(sig){return(async()=>{const cp=process.getBuiltin
   'sig&&sig.addEventListener&&sig.addEventListener(`abort`,()=>{try{ch.kill()}catch{}},{once:true})})})()}';
 const K = 'fetchKimiWithResolvedHome(){let e=this.kimiHomeResolver?.();';
 const P = (group, glob, from, to) => ({ group, glob, from, to });
+// Minified adlar sürümden sürüme değişir: çapalar RegExp, yeni adlar yakalama gruplarından gelir.
+// `to` bir fonksiyon olabilir; orca-edits.js yer tutucuları (__SYZER_CMD__, __SYZER_ICON__) doldurur.
+const szIcon = (jsx, n) => `(0,${jsx}.jsx)(\`img\`,{src:\`__SYZER_ICON__\`,width:${n},height:${n},alt:\`Syzer\`,style:{borderRadius:4}})`;
+const FETCHING = '`fetching`';
 const edits = [
-  // ===== group main =====
+  // ===== main: kullanım servisi =====
   P('main', MAIN, K, FETCH + K),
   P('main', MAIN, 'cursor:null,zcode:null};grokAuthConfigured=', 'cursor:null,zcode:null,syzer:null};grokAuthConfigured='),
   P('main', MAIN, 'cursor:0,zcode:0};activeFailureStreakByProvider=', 'cursor:0,zcode:0,syzer:0};activeFailureStreakByProvider='),
   P('main', MAIN, 'cursor:0,zcode:0};mainWindow=null;', 'cursor:0,zcode:0,syzer:0};mainWindow=null;'),
-  P('main', MAIN, 'this.withFetchingStatus(s.zcode,`zcode`)});let ce=_na()', 'this.withFetchingStatus(s.zcode,`zcode`),syzer:this.withFetchingStatus(s.syzer,`syzer`)});let ce=_na()'),
-  P('main', MAIN, 'fe=Pka({signal:e,authReadResult:D}).then(e=>({status:`fulfilled`,value:e}),e=>({status:`rejected`,reason:e})),pe=!t?.force', 'fe=Pka({signal:e,authReadResult:D}).then(e=>({status:`fulfilled`,value:e}),e=>({status:`rejected`,reason:e})),__szp=this.fetchSyzerUsage(e).then(e=>({status:`fulfilled`,value:e}),e=>({status:`rejected`,reason:e})),pe=!t?.force'),
-  P('main', MAIN, 'antigravityResultPromise:ue})}};function y4', 'antigravityResultPromise:ue,syzerResultPromise:__szp})}};function y4'),
-  P('main', MAIN, 'antigravityResultPromise:O}=n;', 'antigravityResultPromise:O,syzerResultPromise:__szq}=n;'),
-  P('main', MAIN, 'let[ue,de,fe,pe]=await Promise.all([T,E,D,O]);', 'let[ue,de,fe,pe,__szr]=await Promise.all([T,E,D,O,__szq]);'),
-  P('main', MAIN, '_e=y4(`antigravity`,pe),ve=', '_e=y4(`antigravity`,pe),__szy=y4(`syzer`,__szr),ve='),
-  P('main', MAIN, 'this.trackActiveFailureStreak(`antigravity`,_e),this.updateState(', 'this.trackActiveFailureStreak(`antigravity`,_e),this.trackActiveFailureStreak(`syzer`,__szy),this.updateState('),
-  P('main', MAIN, 'antigravity:this.applyStalePolicy(_e,s.antigravity)})}},uNa=class', 'antigravity:this.applyStalePolicy(_e,s.antigravity),syzer:this.applyStalePolicy(__szy,s.syzer)})}},uNa=class'),
+  // döngü başında "fetching" durumu
+  P('main', MAIN, /this\.withFetchingStatus\(s\.zcode,`zcode`\)\}\);let /, () => 'this.withFetchingStatus(s.zcode,`zcode`),syzer:this.withFetchingStatus(s.syzer,`syzer`)});let '),
+  // hazırlık adımı Syzer isteğini başlatır (reddedilmez: hata durumunu kendisi döner), çalıştırma adımı sonucu bekler
+  P('main', MAIN, /antigravityResultPromise:([\w$]+)\}\)\}\};function ([\w$]+)\(e,t\)\{return t\.status===`fulfilled`/, (m) => `antigravityResultPromise:${m[1]},syzerResultPromise:this.fetchSyzerUsage(e)})}};function ${m[2]}(e,t){return t.status===\`fulfilled\``),
+  P('main', MAIN, /antigravityResultPromise:([\w$]+)\}=n;/, (m) => `antigravityResultPromise:${m[1]},syzerResultPromise:__szq}=n;`),
+  P('main', MAIN, /antigravity:this\.applyStalePolicy\(([\w$]+),s\.antigravity\)\}\)\}\},/, (m) => `antigravity:this.applyStalePolicy(${m[1]},s.antigravity),syzer:this.applyStalePolicy((await __szq)??s.syzer,s.syzer)})}},`),
   P('main', MAIN, 'zcode:this.state.zcode};return Object.entries(e)', 'zcode:this.state.zcode,syzer:this.state.syzer};return Object.entries(e)'),
-  P('main', MAIN, '`cursor`,`zcode`,`ssh`,`resource-usage`,`ports`]),Hhr=', '`cursor`,`zcode`,`syzer`,`ssh`,`resource-usage`,`ports`]),Hhr='),
-  P('main', MAIN, '_zcodeStatusBarDefaultAdded:p.l().optional(),', '_zcodeStatusBarDefaultAdded:p.l().optional(),_syzerStatusBarDefaultAdded:p.l().optional(),'),
-  P('main', CT, '`cursor`,`zcode`,`ssh`,`resource-usage`,`ports`];var h=', '`cursor`,`zcode`,`syzer`,`ssh`,`resource-usage`,`ports`];var h='),
-  // ===== group store =====
-  P('store', ST, '`cursor`,`zcode`,`ssh`,`resource-usage`,`ports`],On={', '`cursor`,`zcode`,`syzer`,`ssh`,`resource-usage`,`ports`],On={'),
-  P('store', ST, '[`_zcodeStatusBarDefaultAdded`,dve]];for(let[r,i]of n)', '[`_zcodeStatusBarDefaultAdded`,dve],[`_syzerStatusBarDefaultAdded`,`syzer`]];for(let[r,i]of n)'),
+  P('main', MAIN, /`cursor`,`zcode`,`ssh`,`resource-usage`,`ports`\]\)/, () => '`cursor`,`zcode`,`syzer`,`ssh`,`resource-usage`,`ports`])'),
+  P('main', MAIN, /_zcodeStatusBarDefaultAdded:([\w$]+)\.l\(\)\.optional\(\),/, (m) => `${m[0]}_syzerStatusBarDefaultAdded:${m[1]}.l().optional(),`),
+  // ===== store =====
+  P('store', ST, /`cursor`,`zcode`,`ssh`,`resource-usage`,`ports`\](,[\w$]+=\{todo:)/, (m) => `\`cursor\`,\`zcode\`,\`syzer\`,\`ssh\`,\`resource-usage\`,\`ports\`]${m[1]}`),
+  P('store', ST, /\[`_zcodeStatusBarDefaultAdded`,([\w$]+)\]\];for/, (m) => `[\`_zcodeStatusBarDefaultAdded\`,${m[1]}],[\`_syzerStatusBarDefaultAdded\`,\`syzer\`]];for`),
   P('store', ST, 'cursor:null,zcode:null,minimaxCookieConfigured:!1', 'cursor:null,zcode:null,syzer:null,minimaxCookieConfigured:!1'),
-  // ===== group statusbar =====
-  P('statusbar', SB, 'e===`cursor`?`Cursor`:e}function dt(e)', 'e===`cursor`?`Cursor`:e===`syzer`?`Syzer`:e}function dt(e)'),
-  P('statusbar', SB, 'e===`kimi`?(0,J.jsx)(G,{agent:`kimi`,size:13})', 'e===`syzer`?' + SZ_ICON(13) + ':e===`kimi`?(0,J.jsx)(G,{agent:`kimi`,size:13})'),
+  // ===== durum çubuğu =====
+  P('statusbar', SB, '(0,J.jsx)(`div`,{className:`font-medium ${n}`,children:t}),(0,J.jsx)(`div`,{className:`h-[6px]', '(0,J.jsxs)(`div`,{className:`flex justify-between font-medium ${n}`,children:[t,e.badge?(0,J.jsx)(`span`,{className:`font-normal opacity-70`,children:e.badge}):null]}),(0,J.jsx)(`div`,{className:`h-[6px]'),
+  P('statusbar', SB, /d&&\(0,([\w$]+)\.jsx\)\(`span`,\{children:d\}\)\]\}\)\]\}\)\}function ([\w$]+)\(\{p:e,/, (m) => `e.detail&&(0,${m[1]}.jsx)(\`span\`,{children:e.detail}),d&&(0,${m[1]}.jsx)(\`span\`,{children:d})]})]})}function ${m[2]}({p:e,`),
+  P('statusbar', SB, /:e===`zcode`\?`ZCode`:e===`cursor`\?`Cursor`:e\}/, () => ':e===`zcode`?`ZCode`:e===`cursor`?`Cursor`:e===`syzer`?`Syzer`:e}'),
+  P('statusbar', SB, /e===`kimi`\?\(0,([\w$]+)\.jsx\)\(([\w$]+),\{agent:`kimi`,size:13\}\)/, (m) => `e===\`syzer\`?${szIcon(m[1], 13)}:${m[0]}`),
   P('statusbar', SB, 'case`kimi`:return`K`;', 'case`kimi`:return`K`;case`syzer`:return`S`;'),
   P('statusbar', SB, 'case`antigravity`:case`kimi`:return null;', 'case`antigravity`:case`kimi`:return null;case`syzer`:return null;'),
-  P('statusbar', SB, 'cursor:H,zcode:U}=r,de=_.includes(', 'cursor:H,zcode:U,syzer:__SZ}=r,de=_.includes('),
-  P('statusbar', SB, 'be=$(`zcode`,U,W),xe=fe', 'be=$(`zcode`,U,W),__szd=$(`syzer`,__SZ,W),xe=fe'),
-  P('statusbar', SB, '(r.zcodePlanApiKeyConfigured||K(`zcode`,S)),je=', '(r.zcodePlanApiKeyConfigured||K(`zcode`,S)),__szv=__szd!==null&&_.includes(`syzer`),je='),
-  P('statusbar', SB, 'Ee||De||Oe||ke,Re=Le||Pe', 'Ee||De||Oe||ke||__szv,Re=Le||Pe'),
-  P('statusbar', SB, 'cursor:H,zcode:U},W),Be=ze', 'cursor:H,zcode:U,syzer:__SZ},W),Be=ze'),
+  P('statusbar', SB, /cursor:([\w$]+),zcode:([\w$]+)\}=n,/, (m) => `cursor:${m[1]},zcode:${m[2]},syzer:__SZ}=n,`),
+  P('statusbar', SB, /([\w$]+)=([\w$]+)\(`zcode`,([\w$]+),([\w$]+)\),/, (m) => `${m[0]}__szd=${m[2]}(\`syzer\`,__SZ,${m[4]}),`),
+  P('statusbar', SB, /([\w$]+)=([\w$]+)!==null&&([\w$]+)\.includes\(`zcode`\)&&\([\w$]+\.zcodePlanApiKeyConfigured\|\|[\w$]+\(`zcode`,[\w$]+\)\),/, (m) => `${m[0]}__szv=__szd!==null&&${m[3]}.includes(\`syzer\`),`),
+  P('statusbar', SB, /,([\w$]+)=((?:[\w$]+\|\|){9}[\w$]+),([\w$]+)=\1\|\|[\w$]+,/, (m) => `,${m[1]}=${m[2]}||__szv,${m[3]}=${m[1]}||${m[0].split('||').pop()}`),
+  P('statusbar', SB, /cursor:([\w$]+),zcode:([\w$]+)\},([\w$]+)\),/, (m) => `cursor:${m[1]},zcode:${m[2]},syzer:__SZ},${m[3]}),`),
   P('statusbar', SB, 'e.zcode!==void 0&&Z(e.zcode)?!1:', 'e.zcode!==void 0&&Z(e.zcode)||e.syzer!=null&&Z(e.syzer)?!1:'),
-  P('statusbar', SB, '&&!Q(e.zcode)}function _r(', '&&!Q(e.zcode)&&!Q(e.syzer)}function _r('),
-  P('statusbar', SB, 'U?.status===`fetching`,He=', 'U?.status===`fetching`||__SZ?.status===`fetching`,He='),
-  P('statusbar', SB, 'ke?be:null].filter(', 'ke?be:null,__szv?__szd:null].filter('),
-  P('statusbar', SB, 'f(`auto.components.status.bar.StatusBar.5e59007df4`,`Kimi Usage`)]}),', 'f(`auto.components.status.bar.StatusBar.5e59007df4`,`Kimi Usage`)]}),(0,J.jsxs)(L,{checked:o.includes(`syzer`),onCheckedChange:()=>{i(`usage-tracking`),s(`syzer`)},children:[' + SZ_ICON(14) + ',`Syzer Usage`]}),'),
-  // ===== group settings (optional) =====
-  P('settings', SM, 'toggleDescription:g(`settings.appearance.statusBar.kimiToggleDescription`,`Show Kimi subscription usage for the active workspace.`)},', 'toggleDescription:g(`settings.appearance.statusBar.kimiToggleDescription`,`Show Kimi subscription usage for the active workspace.`)},{id:`syzer`,title:`Syzer Usage`,description:`Show Syzer key-pool usage in the status bar.`,keywords:[`status bar`,`syzer`,`usage`,`quota`],toggleDescription:`Show Syzer key-pool usage for the active workspace.`},'),
+  P('statusbar', SB, /&&!([\w$]+)\(e\.zcode\)\}function /, (m) => `&&!${m[1]}(e.zcode)&&!${m[1]}(e.syzer)}function `),
+  P('statusbar', SB, /([\w$]+)\?\.status===`fetching`,([\w$]+)=([\w$]+)\?`Minimize Floating Workspace`/, (m) => `${m[1]}?.status===\`fetching\`||__SZ?.status===\`fetching\`,${m[2]}=${m[3]}?\`Minimize Floating Workspace\``),
+  P('statusbar', SB, /,([\w$]+)\?([\w$]+):null\]\.filter\(e=>e!==null\),segmentsIconOnly:/, (m) => `,${m[1]}?${m[2]}:null,__szv?__szd:null].filter(e=>e!==null),segmentsIconOnly:`),
+  // kullanım menüsü: ZCode satırının arkasına Syzer anahtarı
+  P('statusbar', SB, /([\w$]+)\(`zcode`,t\)&&\(0,([\w$]+)\.jsxs\)\(([\w$]+),\{checked:([\w$]+)\.includes\(`zcode`\),onCheckedChange:\(\)=>\{([\w$]+)\(`usage-tracking`\),([\w$]+)\(`zcode`\)\},children:\[[^\]]*?`ZCode Usage`\)\]\}\),/,
+    (m) => `${m[0]}(0,${m[2]}.jsxs)(${m[3]},{checked:${m[4]}.includes(\`syzer\`),onCheckedChange:()=>{${m[5]}(\`usage-tracking\`),${m[6]}(\`syzer\`)},children:[${szIcon(m[2], 14)},\`Syzer Usage\`]}),`),
 ];
 module.exports = { edits };

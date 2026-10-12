@@ -7,13 +7,14 @@ const patch = require('../src/orca-patch');
 
 const CMD = '"node" "syzer.js"';
 
-test('every edit has a group and exact from/to strings', () => {
+test('every edit has a group, a string/RegExp anchor and a string/function replacement', () => {
   const list = patch.edits(CMD);
   assert.ok(list.length > 20);
   for (const e of list) {
     assert.ok(e.group, 'group');
-    assert.ok(typeof e.from === 'string' && e.from.length > 0, `from: ${e.group}`);
-    assert.ok(typeof e.to === 'string', `to: ${e.group}`);
+    assert.ok((typeof e.from === 'string' && e.from.length > 0) || e.from instanceof RegExp, `from: ${e.group}`);
+    assert.ok(typeof e.to === 'string' || typeof e.to === 'function', `to: ${e.group}`);
+    assert.ok(!(e.from instanceof RegExp) || typeof e.to === 'function' || !/\$\d/.test(e.to), `regex anchors use function replacements: ${e.group}`);
     assert.ok(e.file || e.glob instanceof RegExp, `target: ${e.group}`);
   }
 });
@@ -45,7 +46,10 @@ test('marker changes when a patch source file changes (stale-patch guard)', () =
 test('shells group closes terminals on quit and its snippet is valid JS', () => {
   const e = patch.edits(CMD).filter((x) => x.group === 'shells');
   assert.strictEqual(e.length, 2);
-  assert.ok(e.some((x) => x.to.includes('__syzerQuitDaemon(Kua()?GQt:WQt)')));
+  // minify adları sürümden sürüme değişir: çapa RegExp, yeni adlar yakalama gruplarından gelir
+  const td = e.find((x) => x.from instanceof RegExp && x.from.test('{name:`daemon`,promise:Blo()?C7t():S7t()}'));
+  assert.ok(td, 'teardown anchor matches a renamed bundle');
+  assert.strictEqual(td.to(td.from.exec('{name:`daemon`,promise:Blo()?C7t():S7t()}')), '{name:`daemon`,promise:__syzerQuitDaemon(Blo()?C7t:S7t)}');
   assert.ok(!/'/.test(require('../src/orca-snippets/quit-kill').DEFS), 'no single quotes in injected text');
   new Function('I', 'ZYr', 'eH', 'u$t', `${require('../src/orca-snippets/quit-kill').DEFS};return 1`);
 });
