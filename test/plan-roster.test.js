@@ -59,3 +59,12 @@ test('Plan before any prompt does not invent a state', () => {
   const ev = mk();
   assert.strictEqual(ev({}, 'Plan', '', 'p', plan([], 0)), null);
 });
+
+test('Done clears the plan rows so a finished turn has no leftover roster entries', () => {
+  const ev = mk(); const e = {};
+  ev(e, 'Prompt', 'x', 'p', {});
+  ev(e, 'Plan', '', 'p', plan([item('1', 1, 'a', 'idle'), item('2', 2, 'b', 'idle')], 2));
+  const out = ev(e, 'Done', '', 'p', { last_assistant_message: 'ok' });
+  assert.strictEqual(out.state, 'done');
+  assert.strictEqual(out.subagents, undefined);
+});

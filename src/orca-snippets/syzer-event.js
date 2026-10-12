@@ -22,7 +22,7 @@ const LINES = [
   'if(nm!==void 0){(nm!==p.tool||has)&&(p.input=pv);p.tool=nm}else has&&(p.input=pv);',
   'if(t===`ToolEnd`){const o=__syzerStr(__syzerPrev(i.result??i.output??i.tool_response),8000);o&&(p.msg=o,p.msgTool=!0)}',
   'if(t===`Waiting`){const q=i.interactive_prompt;ip=__syzerStr(typeof q==`string`?q:q&&typeof q==`object`?JSON.stringify(q):void 0,16000)}}',
-  'if(t===`Done`){const a=__syzerStr(i.last_assistant_message,8000);a&&(p.msg=a,p.msgTool=void 0)}',
+  'if(t===`Done`){const a=__syzerStr(i.last_assistant_message,8000);a&&(p.msg=a,p.msgTool=void 0);p.plan=void 0}',
   'p.lead=s;P.set(r,p);const out=__syzerOut(p,s,ip,s===`done`&&(i.interrupted===!0||i.is_interrupt===!0)?!0:void 0);t===`End`&&P.delete(r);return out}',
 ];
 const SYZER_EVENT = LINES.join('');
