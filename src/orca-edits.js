@@ -23,20 +23,22 @@ const g = (name) => (re) => ({ re, name });
 // jcode ayrıştırıcısının kendi gövdesinden okunur (H=genel yardımcılar, M=tarayıcı modülü, dosya okuyucu).
 // Biçim değişirse parserFor fırlatır ve grup güvenle atlanır.
 const ID = String.raw`[\w$]+`;
+const LIST_CODEBUDDY = /\.codebuddy\.jcode(?=(?:\.[\w-]+)*`\.split\(`\.`\))/;
 const JCODE_PARSER_RE = new RegExp(
   String.raw`async function ${ID}\(e,t=process\.platform,n\)\{return ${ID}\(e,await ${ID}\.${ID}\(e\.path,\`utf-8\`,\`scan\`\),t,n\?\{messages:n\}:void 0\)\}` +
-  String.raw`function ${ID}\(e,t,n=process\.platform,r=\{\}\)\{(?:(?!agent:\`)[^])*agent:\`jcode\`[^]*?return ${ID}\.${ID}\(o,n,r\)\}` +
-  String.raw`function ${ID}\(e,t\)\{[^]*?\}(?=async function)`,
+  String.raw`function ${ID}\(e,t,n=process\.platform,${ID}=\{\}\)\{(?:(?!agent:\`)[^])*agent:\`jcode\`[^]*?return ${ID}\.${ID}\(${ID},n,${ID}\)\}` +
+  String.raw`function ${ID}\(e,t\)\{[^]*?\}(?=async function|var |function )`,
 );
 function parserFor(src) {
   const need = (re, what) => { const m = src.match(re); if (!m) throw new Error(`jcode parser shape changed: ${what}`); return m; };
   const rd = need(new RegExp(String.raw`await (${ID})\.(${ID})\(e\.path,\`utf-8\`,\`scan\``), 'reader');
-  const [, H, OBJ, M, MK, STR, IDP] = need(new RegExp(String.raw`let a=(${ID})\.(${ID})\(i\);if\(!a\)return null;let o=(${ID})\.(${ID})\(\{agent:\`jcode\`,file:e,sessionId:\1\.(${ID})\(a\.id\)\?\?\1\.\5\(a\.session_id\)\?\?\3\.(${ID})\(e\.path\)`), 'object/session');
-  const ARR = need(new RegExp(String.raw`for\(let e of ${H}\.(${ID})\(a\.messages\)\)`), 'array')[1];
-  const TS = need(new RegExp(String.raw`${M}\.(${ID})\(o,a\.created_at\)`), 'timestamp')[1];
-  const FIN = need(new RegExp(String.raw`return ${M}\.(${ID})\(o,n,r\)\}`), 'finish')[1];
-  const ADD = need(new RegExp(String.raw`${M}\.(${ID})\(e,r,i,n\.timestamp\)`), 'add message')[1];
-  const [, TITLE, CONTENT] = need(new RegExp(String.raw`${H}\.(${ID})\(${H}\.(${ID})\(i\)\?\?\`\`\)`), 'title/content');
+  // yerel değişken adları (i/a/o/r…) sürümden sürüme değişir: hepsi yakalama grubundan okunur
+  const [, RAW, OB, H, OBJ, REC, M, MK, STR, IDP] = need(new RegExp(String.raw`let (${ID});try\{\1=JSON\.parse\(t\)\}catch\{return null\}let (${ID})=(${ID})\.(${ID})\(\1\);if\(!\2\)return null;let (${ID})=(${ID})\.(${ID})\(\{agent:\`jcode\`,file:e,sessionId:\3\.(${ID})\(\2\.id\)\?\?\3\.\8\(\2\.session_id\)\?\?\6\.(${ID})\(e\.path\)`), 'object/session');
+  const ARR = need(new RegExp(String.raw`for\(let e of ${H}\.(${ID})\(${OB}\.messages\)\)`), 'array')[1];
+  const TS = need(new RegExp(String.raw`${M}\.(${ID})\(${REC},${OB}\.created_at\)`), 'timestamp')[1];
+  const FIN = need(new RegExp(String.raw`return ${M}\.(${ID})\(${REC},n,${ID}\)\}`), 'finish')[1];
+  const ADD = need(new RegExp(String.raw`${M}\.(${ID})\(e,${ID},${ID},n\.timestamp\)`), 'add message')[1];
+  const [, TITLE, CONTENT] = need(new RegExp(String.raw`${H}\.(${ID})\(${H}\.(${ID})\(${ID}\)\?\?\`\`\)`), 'title/content');
   return 'async function __syzerParse(file,platform,messages){' +
     `let o;try{o=${H}.${OBJ}(JSON.parse(await ${rd[1]}.${rd[2]}(file.path,\`utf-8\`,\`scan\`)))}catch(e){return null}` +
     'if(!o)return null;' +
@@ -102,8 +104,8 @@ function edits(cmd, ICON, marker) {
     { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-config-.*\.js$/, from: CFG, to: CFG_TO },
     { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-display-names-.*\.js$/, from: 'jcode:`Jcode`}', to: 'jcode:`Jcode`,syzer:`Syzer`}' },
     // yeni sekme menüsü / ajan seçimi sıralaması (main + renderer)
-    { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-selection-.*\.js$/, from: '.codebuddy.jcode`.split(`.`)', to: '.codebuddy.jcode.syzer`.split(`.`)' },
-    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: '.codebuddy.jcode`.split(`.`)', to: '.codebuddy.jcode.syzer`.split(`.`)' },
+    { group: 'agent', glob: /^out\/main\/chunks\/tui-agent-selection-.*\.js$/, from: LIST_CODEBUDDY, to: '.codebuddy.jcode.syzer' },
+    { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: LIST_CODEBUDDY, to: '.codebuddy.jcode.syzer' },
     { group: 'agent', glob: /^out\/renderer\/assets\/stale-document-visibility-.*\.js$/, from: 'jcode:`Jcode`', to: 'jcode:`Jcode`,syzer:`Syzer`' },
     { group: 'agent', glob: /^out\/renderer\/assets\/markdown-preview-document\.worker-.*\.js$/, from: 'jcode:`Jcode`}', to: 'jcode:`Jcode`,syzer:`Syzer`}' },
     { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'dsb:`DeepSeek Build`,jcode:`Jcode`}', to: 'dsb:`DeepSeek Build`,jcode:`Jcode`,syzer:`Syzer`}' },
@@ -111,22 +113,22 @@ function edits(cmd, ICON, marker) {
     { group: 'agent', glob: /^out\/renderer\/assets\/store-.*\.js$/, from: 'dsb:!0,jcode:!0}', to: 'dsb:!0,jcode:!0,syzer:!0}' },
     { group: 'agent', glob: /^out\/renderer\/assets\/agent-catalog-.*\.js$/, from: 'homepageUrl:`https://github.com/1jehuang/jcode`}]}', to: 'homepageUrl:`https://github.com/1jehuang/jcode`},{id:`syzer`,label:`Syzer`,cmd:`syzer`,iconUrl:`' + ICON + '`,searchAliases:[`syzercli`,`openrouter`,`nvidia`],homepageUrl:`https://github.com/yasinbalcik/SyzerCLI`}]}' },
     // durum olayları: Syzer'ın KENDİ hook yolu (POST /hook/syzer) ve kendi olay ayrıştırıcısı (başka ajana bağlı değil)
-    { group: 'agent', file: 'out/main/index.js', from: '"/hook/jcode":`jcode`})', to: '"/hook/jcode":`jcode`,"/hook/syzer":`syzer`})' },
-    { group: 'agent', file: 'out/main/index.js', from: '.zcode.dsh.jcode`.split(`.`)', to: '.zcode.dsh.jcode.syzer`.split(`.`)' },
+    { group: 'agent', file: 'out/main/index.js', from: '"/hook/jcode":`jcode`', to: '"/hook/jcode":`jcode`,"/hook/syzer":`syzer`' },
+    { group: 'agent', file: 'out/main/index.js', from: /\.zcode\.dsh\.jcode(?=(?:\.[\w-]+)*`\.split\(`\.`\))/, to: '.zcode.dsh.jcode.syzer' },
     { group: 'agent', file: 'out/main/index.js', from: 'case`hermes`:return t===`pre_llm_call`||t===`on_session_start`;case`devin`:', to: 'case`hermes`:return t===`pre_llm_call`||t===`on_session_start`;case`syzer`:return t===`Prompt`;case`devin`:' },
     { group: 'agent', file: 'out/main/index.js', from: /case`hermes`:f=([\w$]+)\(t,r,i,a,o\);break;/, to: (m) => `${m[0]}case\`syzer\`:f=__syzerEvent(t,r,i,a,o);break;` },
     // olay ayrıştırıcısı: Orca'nın genel durum normalleştiricisinin (minify adı sürümden sürüme değişir) adı devin işleyicisinden okunur
     { group: 'agent', file: 'out/main/index.js', from: /function [\w$]+\(e,t,n,r,i\)\{if\(t===`SessionStart`\)return [\w$]+\(e,r\),null;let a=t===`UserPromptSubmit`\|\|t===`PreToolUse`\|\|t===`PostToolUse`\|\|t===`PostCompaction`[^]*?return ([\w$]+)\(\{state:a,prompt:/, to: (m) => SYZER_EVENT.split('un(').join(`${m[1]}(`) + m[0] },
     // ---- history: oturum geçmişi (Syzer oturumları + alt ajanlar, kendi biçimimiz) ----
     // Minified adlar sürümden sürüme değiştiği için çapalar RegExp; yakalama grupları yeni adları taşır.
-    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: /`kimi`,`muse`,`jcode`\](,[\w$]+=64)/, to: (m) => `\`kimi\`,\`muse\`,\`jcode\`,\`syzer\`]${m[1]}` },
+    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: /`kimi`,`muse`,`jcode`((?:,`[\w-]+`)*)\](,[\w$]+=64)/, to: (m) => `\`kimi\`,\`muse\`,\`jcode\`,\`syzer\`${m[1]}]${m[2]}` },
     { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: 'muse:`Muse`,jcode:`Jcode`', to: 'muse:`Muse`,jcode:`Jcode`,syzer:`Syzer`' },
-    { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: '`kimi`,`muse`,`jcode`]', to: '`kimi`,`muse`,`jcode`,`syzer`]' },
+    { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: /`kimi`,`muse`,`jcode`((?:,`[\w-]+`)*)\]/, to: (m) => `\`kimi\`,\`muse\`,\`jcode\`,\`syzer\`${m[1]}]` },
     { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-types-.*\.js$/, from: 'jcode:`Jcode`', to: 'jcode:`Jcode`,syzer:`Syzer`' },
     { group: 'history', glob: /^out\/main\/chunks\/session-scanner-opencode-sqlite-open-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
-    { group: 'history', glob: /^out\/renderer\/assets\/ai-vault-session-drag-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
+    { group: 'history', glob: /^out\/renderer\/assets\/(?:ai-vault-session-drag|AgentSessionContinuationDialog)-.*\.js$/, from: RESUME, to: RESUME + ';case`syzer`:return`${t} --resume ${n}`' },
     { group: 'history', glob: /^out\/main\/chunks\/session-search-sqlite-support-.*\.js$/, from: /"prime-agent":\{rootDirs:\(e,t\)=>[\w$]+\(e\.primeAgentSessionsDir\?\?[\w$]+,t,\[`\.prime`,`agent`,`sessions`\]\),extensions:\[`\.jsonl`\]\},/, to: (m) => `${m[0]}syzer:{rootDirs:()=>[${SYZER_DIR}],extensions:[\`.json\`],directoryPredicate:()=>!1},` },
-    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: /case`jcode`:return ([\w$]+)\(e\.file,t,n\)\}\}/, to: (m) => `case\`jcode\`:return ${m[1]}(e.file,t,n);case\`syzer\`:return __syzerParse(e.file,t,n)}}` },
+    { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: /case`jcode`:return ([\w$]+)\(e\.file,t,n\)(?=(?:;case`[\w-]+`:return [\w$]+\(e\.file,t,n\))*\}\})/, to: (m) => `case\`jcode\`:return ${m[1]}(e.file,t,n);case\`syzer\`:return __syzerParse(e.file,t,n)` },
     { group: 'history', glob: /^out\/main\/chunks\/session-scanner-service-protocol-.*\.js$/, from: JCODE_PARSER_RE, to: (m) => parserFor(m[0]) + m[0] },
     { group: 'history', file: 'out/main/session-scanner-service-entry.js', from: /function ([\w$]+)\(e\)\{return e\.agent===`claude`\?([\w$]+)\(\{parentFilePath:e\.parentFilePath\}\):([\w$]+)\(\{parentFilePath:e\.parentFilePath\}\)\}/, to: (m) => `${SUBS}function ${m[1]}(e){return e.agent===\`syzer\`?__syzerSubs(e.parentFilePath):e.agent===\`claude\`?${m[2]}({parentFilePath:e.parentFilePath}):${m[3]}({parentFilePath:e.parentFilePath})}` },
     { group: 'history', file: 'out/main/index.js', from: 'if(!e||e.agent!==`claude`&&e.agent!==`omp`||typeof e.parentFilePath', to: 'if(!e||e.agent!==`claude`&&e.agent!==`omp`&&e.agent!==`syzer`||typeof e.parentFilePath' },
@@ -152,7 +154,7 @@ function edits(cmd, ICON, marker) {
           .split('(0,Q.jsxs)').join(`(0,${J}.jsxs)`).split('(0,Q.jsx)').join(`(0,${J}.jsx)`).split('(0,Z.').join(`(0,${m[2]}.`);
         return body + m[0];
       } },
-    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: /([\w$]+)=\[!s\|\|\/opencode\|devin\|account\/i\.test\(s\)\?\(0,([\w$]+)\.jsxs\)/, to: (m) => `${m[1]}=[!s||/syzer|openrouter|nvidia|api key/i.test(s)?(0,${m[2]}.jsx)(__SyzerKeys,{},\`syzer\`):null,!s||/opencode|devin|account/i.test(s)?(0,${m[2]}.jsxs)` },
+    { group: 'keys', glob: /^out\/renderer\/assets\/Settings-.*\.js$/, from: /([\w$]+)=\[!([\w$]+)\|\|\/opencode\|devin\|account\/i\.test\(\2\)\?\(0,([\w$]+)\.jsxs\)/, to: (m) => `${m[1]}=[!${m[2]}||/syzer|openrouter|nvidia|api key/i.test(${m[2]})?(0,${m[3]}.jsx)(__SyzerKeys,{},\`syzer\`):null,!${m[2]}||/opencode|devin|account/i.test(${m[2]})?(0,${m[3]}.jsxs)` },
 
     // ---- analytics: Ayarlar → Stats & Usage → "Syzer" filtresi (kendi sağlayıcı servisi, kendi kart/ısı haritası) ----
     ...analyticsEdits(cmd),

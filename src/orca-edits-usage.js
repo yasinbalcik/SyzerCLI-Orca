@@ -67,7 +67,7 @@ const edits = [
   P('main', MAIN, 'cursor:0,zcode:0};activeFailureStreakByProvider=', 'cursor:0,zcode:0,syzer:0};activeFailureStreakByProvider='),
   P('main', MAIN, 'cursor:0,zcode:0};mainWindow=null;', 'cursor:0,zcode:0,syzer:0};mainWindow=null;'),
   // döngü başında "fetching" durumu
-  P('main', MAIN, /this\.withFetchingStatus\(s\.zcode,`zcode`\)\}\);let /, () => 'this.withFetchingStatus(s.zcode,`zcode`),syzer:this.withFetchingStatus(s.syzer,`syzer`)});let '),
+  P('main', MAIN, /this\.withFetchingStatus\(([\w$]+)\.zcode,`zcode`\)\}\);let /, (m) => `this.withFetchingStatus(${m[1]}.zcode,\`zcode\`),syzer:this.withFetchingStatus(${m[1]}.syzer,\`syzer\`)});let `),
   // hazırlık adımı Syzer isteğini başlatır (reddedilmez: hata durumunu kendisi döner), çalıştırma adımı sonucu bekler
   P('main', MAIN, /antigravityResultPromise:([\w$]+)\}\)\}\};function ([\w$]+)\(e,t\)\{return t\.status===`fulfilled`/, (m) => `antigravityResultPromise:${m[1]},syzerResultPromise:this.fetchSyzerUsage(e)})}};function ${m[2]}(e,t){return t.status===\`fulfilled\``),
   P('main', MAIN, /antigravityResultPromise:([\w$]+)\}=n;/, (m) => `antigravityResultPromise:${m[1]},syzerResultPromise:__szq}=n;`),
@@ -80,7 +80,8 @@ const edits = [
   P('store', ST, /\[`_zcodeStatusBarDefaultAdded`,([\w$]+)\]\];for/, (m) => `[\`_zcodeStatusBarDefaultAdded\`,${m[1]}],[\`_syzerStatusBarDefaultAdded\`,\`syzer\`]];for`),
   P('store', ST, 'cursor:null,zcode:null,minimaxCookieConfigured:!1', 'cursor:null,zcode:null,syzer:null,minimaxCookieConfigured:!1'),
   // ===== durum çubuğu =====
-  P('statusbar', SB, '(0,J.jsx)(`div`,{className:`font-medium ${n}`,children:t}),(0,J.jsx)(`div`,{className:`h-[6px]', '(0,J.jsxs)(`div`,{className:`flex justify-between font-medium ${n}`,children:[t,e.badge?(0,J.jsx)(`span`,{className:`font-normal opacity-70`,children:e.badge}):null]}),(0,J.jsx)(`div`,{className:`h-[6px]'),
+  P('statusbar', SB, /(e\.resetsAt\?[\w$]+\(e\.resetsAt-[\w$]+\):null;return\(0,([\w$]+)\.jsxs\)\(`div`,\{className:`space-y-1`,children:\[)\(0,\2\.jsx\)\(`div`,\{className:`font-medium \$\{([\w$]+)\}`,children:([\w$]+)\}\),\(0,\2\.jsx\)\(`div`,\{className:`h-\[6px\]/,
+    (m) => `${m[1]}(0,${m[2]}.jsxs)(\`div\`,{className:\`flex justify-between font-medium \${${m[3]}}\`,children:[${m[4]},e.badge?(0,${m[2]}.jsx)(\`span\`,{className:\`font-normal opacity-70\`,children:e.badge}):null]}),(0,${m[2]}.jsx)(\`div\`,{className:\`h-[6px]`),
   P('statusbar', SB, /d&&\(0,([\w$]+)\.jsx\)\(`span`,\{children:d\}\)\]\}\)\]\}\)\}function ([\w$]+)\(\{p:e,/, (m) => `e.detail&&(0,${m[1]}.jsx)(\`span\`,{children:e.detail}),d&&(0,${m[1]}.jsx)(\`span\`,{children:d})]})]})}function ${m[2]}({p:e,`),
   P('statusbar', SB, /:e===`zcode`\?`ZCode`:e===`cursor`\?`Cursor`:e\}/, () => ':e===`zcode`?`ZCode`:e===`cursor`?`Cursor`:e===`syzer`?`Syzer`:e}'),
   P('statusbar', SB, /e===`kimi`\?\(0,([\w$]+)\.jsx\)\(([\w$]+),\{agent:`kimi`,size:13\}\)/, (m) => `e===\`syzer\`?${szIcon(m[1], 13)}:${m[0]}`),
@@ -91,7 +92,7 @@ const edits = [
   P('statusbar', SB, /([\w$]+)=([\w$]+)!==null&&([\w$]+)\.includes\(`zcode`\)&&\([\w$]+\.zcodePlanApiKeyConfigured\|\|[\w$]+\(`zcode`,[\w$]+\)\),/, (m) => `${m[0]}__szv=__szd!==null&&${m[3]}.includes(\`syzer\`),`),
   P('statusbar', SB, /,([\w$]+)=((?:[\w$]+\|\|){9}[\w$]+),([\w$]+)=\1\|\|[\w$]+,/, (m) => `,${m[1]}=${m[2]}||__szv,${m[3]}=${m[1]}||${m[0].split('||').pop()}`),
   P('statusbar', SB, /cursor:([\w$]+),zcode:([\w$]+)\},([\w$]+)\),/, (m) => `cursor:${m[1]},zcode:${m[2]},syzer:__SZ},${m[3]}),`),
-  P('statusbar', SB, 'e.zcode!==void 0&&Z(e.zcode)?!1:', 'e.zcode!==void 0&&Z(e.zcode)||e.syzer!=null&&Z(e.syzer)?!1:'),
+  P('statusbar', SB, /e\.zcode!==void 0&&([\w$]+)\(e\.zcode\)\?!1:/, (m) => `e.zcode!==void 0&&${m[1]}(e.zcode)||e.syzer!=null&&${m[1]}(e.syzer)?!1:`),
   P('statusbar', SB, /&&!([\w$]+)\(e\.zcode\)\}function /, (m) => `&&!${m[1]}(e.zcode)&&!${m[1]}(e.syzer)}function `),
   P('statusbar', SB, /([\w$]+)\?\.status===`fetching`,([\w$]+)=([\w$]+)\?`Minimize Floating Workspace`/, (m) => `${m[1]}?.status===\`fetching\`||__SZ?.status===\`fetching\`,${m[2]}=${m[3]}?\`Minimize Floating Workspace\``),
   P('statusbar', SB, /,([\w$]+)\?([\w$]+):null\]\.filter\(e=>e!==null\),segmentsIconOnly:/, (m) => `,${m[1]}?${m[2]}:null,__szv?__szd:null].filter(e=>e!==null),segmentsIconOnly:`),
